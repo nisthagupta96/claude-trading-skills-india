@@ -58,6 +58,53 @@ class TestCharges(unittest.TestCase):
         self.assertEqual(ch.inr(-999), "-₹999.00")
         self.assertEqual(ch.inr(100000, 0), "₹1,00,000")
 
+    def test_latest_rate_era_matches_current_constants(self):
+        r = ch.rates_on("2099-01-01")
+        for key in ("STT", "EXCHANGE_TXN", "SEBI_FEE", "STAMP", "GST"):
+            self.assertEqual(r[key], getattr(ch, key), key)
+        self.assertEqual(ch.calculate("futures", 100, 110, 1000, on="2099-01-01")["total_charges"],
+                         ch.calculate("futures", 100, 110, 1000)["total_charges"])
+
+    def test_dated_stt_eras(self):
+        sell = lambda d: ch.calculate("futures", 0, 100, 1000, broker="zerodha", on=d)["stt"]
+        self.assertAlmostEqual(sell("2023-03-31"), 100_000 * 0.0001)
+        self.assertAlmostEqual(sell("2023-04-01"), 100_000 * 0.000125)
+        self.assertAlmostEqual(sell("2024-10-01"), 100_000 * 0.0002)
+        self.assertAlmostEqual(sell("2026-04-01"), 100_000 * 0.0005)
+        opt = ch.calculate("options", 0, 100, 100, on="2024-09-30")["stt"]
+        self.assertAlmostEqual(opt, 10_000 * 0.000625)
+
+    def test_dated_gst_stamp_and_exchange(self):
+        b = ch.calculate("delivery", 1000, 0, 100, broker="zerodha", on="2017-06-30")
+        self.assertAlmostEqual(b["stamp_duty"], 100_000 * 0.0001)          # pre-2020 state-wise approximation
+        self.assertAlmostEqual(b["exchange_txn"], 100_000 * 0.0000325)
+        self.assertAlmostEqual(b["gst"], 0.15 * (b["exchange_txn"] + b["sebi_fee"] + b["ipft"]))
+        a = ch.calculate("delivery", 1000, 0, 100, broker="zerodha", on="2020-07-01")
+        self.assertAlmostEqual(a["stamp_duty"], 100_000 * 0.00015)
+        self.assertAlmostEqual(a["gst"], 0.18 * (a["exchange_txn"] + a["sebi_fee"] + a["ipft"]))
+        self.assertAlmostEqual(ch.calculate("delivery", 1000, 0, 100, on="2024-10-01")["exchange_txn"],
+                               100_000 * 0.0000297)
+        self.assertIn("rates in force on 2017-06-30", b["rates_basis"])
+
+    def test_legs_on_dates_sum_to_round_trip(self):
+        kw = {"broker": "groww", "on": "2022-05-10"}
+        rt = ch.calculate("delivery", 500, 520, 37, **kw)["total_charges"]
+        legs = (ch.calculate("delivery", 500, 0, 37, **kw)["total_charges"]
+                + ch.calculate("delivery", 0, 520, 37, **kw)["total_charges"])
+        self.assertAlmostEqual(rt, legs, places=9)
+
+    def test_rate_notes_flag_approximations(self):
+        old = ch.rates_on("2012-01-01", "NSE")
+        self.assertTrue(any("before the rate history" in n for n in old["notes"]))
+        self.assertTrue(any("Stamp duty" in n for n in old["notes"]))
+        self.assertFalse(any("BSE" in n for n in old["notes"]))           # NSE run: BSE note filtered
+        self.assertFalse(any("Stamp duty" in n for n in ch.rates_on("2021-01-01", "NSE")["notes"]))
+        span = ch.rate_notes_between("2023-11-22", "2026-11-20", "NSE")
+        self.assertEqual(span["changes_on"], ["2024-10-01", "2026-03-01", "2026-04-01"])
+        self.assertEqual(span["eras"], 4)
+        self.assertEqual(ch.rate_notes_between("2026-05-01", "2026-06-01", "NSE")["approximations"],
+                         [n for n in ch.rates_on("2026-05-01", "NSE")["notes"]])
+
     def test_cli_runs(self):
         self.assertEqual(ch.main(["--segment", "intraday", "--buy", "100", "--sell", "101", "--qty", "10",
                                   "--broker", "all"]), 0)

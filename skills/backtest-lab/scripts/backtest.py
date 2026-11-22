@@ -244,6 +244,9 @@ class Series:
         self.n = len(rows)
         self.regime = None          # [(long_ok, short_ok)] per bar when a regime filter is attached
         self.regime_label = None
+        self.div = [0.0] * self.n   # cash dividend per share going ex on this bar
+        self.div_source = None      # where the dividends came from (None = not included)
+        self.bench = None           # Nifty 50 (or other index) closes for the index-fund comparison
         self.notes: list = []
         self._ind: dict = {}
         self._sig: dict = {}
@@ -382,6 +385,76 @@ def attach_regime(s: Series, bench_rows: list, ma: int = 200, label: str = "benc
     s.regime_label = f"{label} close vs its {ma}-day SMA"
 
 
+def load_dividends_csv(path: str) -> list:
+    """(ex-date, ₹ per share) from a CSV with a date column (Date / Ex-Date) and an amount column
+    (Dividend / Dividends / Amount). Amounts must be on the same split basis as the price data."""
+    if not Path(path).is_file():
+        raise BacktestError(f"file not found: {path}")
+    with open(path, newline="", encoding="utf-8-sig") as fh:
+        reader = csv.DictReader(fh)
+        cols = {c.strip().lower(): c for c in reader.fieldnames or []}
+        cd = next((cols[k] for k in ("ex-date", "ex_date", "exdate", "ex date", "date") if k in cols), None)
+        ca = next((cols[k] for k in ("dividend", "dividends", "amount", "dividend per share", "dps") if k in cols), None)
+        if not cd or not ca:
+            raise BacktestError(f"dividend CSV needs a date column (Date or Ex-Date) and an amount column "
+                                f"(Dividend or Amount); found {list(cols)}")
+        out = []
+        for r in reader:
+            try:
+                amt = float(str(r[ca]).replace("₹", "").replace(",", "").strip())
+                d = ta.parse_ts(r[cd]).date()
+            except (ValueError, TypeError, KeyError):
+                continue
+            if math.isfinite(amt) and amt > 0:
+                out.append((d, amt))
+    return out
+
+
+def fetch_yf_dividends(symbol: str, exchange: str = "NSE") -> list:
+    """Cash dividends (ex-date, ₹ per share, split-adjusted like Yahoo's prices) via yfinance."""
+    try:
+        import yfinance as yf  # type: ignore
+    except ImportError:
+        raise SystemExit("yfinance not installed: pip install yfinance  (or pass --dividends file.csv)")
+    divs = yf.Ticker(ta.yf_ticker(symbol, exchange)).dividends
+    out = []
+    for idx, amt in (divs.items() if divs is not None else []):
+        d = idx.to_pydatetime()
+        if d.tzinfo:
+            d = d.astimezone(ta.IST).replace(tzinfo=None)
+        if amt and float(amt) > 0:
+            out.append((d.date(), float(amt)))
+    return out
+
+
+def attach_dividends(s: Series, divs: list, source: str) -> None:
+    """Book each dividend on the first bar on or after its ex-date (an ex-date on a holiday moves to the
+    next session). Anyone holding at the previous close is entitled to it."""
+    s.div = [0.0] * s.n
+    booked, total = 0, 0.0
+    for d, amt in sorted(divs):
+        if d < s.dates[0] or d > s.dates[-1]:
+            continue
+        i = next(k for k, x in enumerate(s.dates) if x >= d)
+        if (s.dates[i] - d).days > 7:
+            s.notes.append(f"Dividend of ₹{amt:g} ex {d} falls in a gap in the price data; skipped.")
+            continue
+        s.div[i] += amt
+        booked += 1
+        total += amt
+    s.div_source = source
+    s.notes.append(f"Dividends from {source}: {booked} ex-date(s), ₹{total:,.2f} a share across the data. Credited "
+                   "on the ex-date (the real payment comes weeks later) and kept as cash, not reinvested.")
+
+
+def attach_index(s: Series, rows: list, label: str, tri: bool = False) -> None:
+    rows, _, _ = sanitize(rows)
+    if not rows:
+        raise BacktestError("index data has no usable bars")
+    s.bench = {"dates": [r["date"].date() if isinstance(r["date"], datetime) else r["date"] for r in rows],
+               "close": [r["close"] for r in rows], "label": label, "tri": bool(tri)}
+
+
 def _date(text: str, flag: str) -> date:
     try:
         return datetime.strptime(text.strip(), "%Y-%m-%d").date()
@@ -495,7 +568,9 @@ class Config:
     def __init__(self, capital: float = 1_000_000.0, segment: str = "delivery", broker: str = "zerodha",
                  exchange: str = "NSE", slippage_bps: float = 5.0, sizing: str = "pct",
                  size_value: float = 100.0, lot_size: int = 1, leverage: float = 1.0,
-                 allow_short: bool = False, circuit_band: float | None = None, rf_pct: float = 6.5):
+                 allow_short: bool = False, circuit_band: float | None = None, rf_pct: float = 6.5,
+                 dated_charges: bool = True, deposit_pct: float = 6.5, index_ter_pct: float = 0.2,
+                 index_yield_pct: float = 1.3):
         if not (isinstance(capital, (int, float)) and math.isfinite(capital) and capital > 0):
             raise BacktestError("--capital must be a positive number")
         if segment not in SEGMENTS:
@@ -527,10 +602,23 @@ class Config:
             raise BacktestError("--circuit-band must be 2, 5, 10 or 20")
         if not (math.isfinite(rf_pct) and -5 <= rf_pct <= 30):
             raise BacktestError("--rf must be an annual % between -5 and 30")
+        if not (math.isfinite(deposit_pct) and 0 <= deposit_pct <= 20):
+            raise BacktestError("--deposit-rate must be an annual % between 0 and 20")
+        if not (math.isfinite(index_ter_pct) and 0 <= index_ter_pct <= 3):
+            raise BacktestError("--index-ter must be an annual % between 0 and 3")
+        if not (math.isfinite(index_yield_pct) and 0 <= index_yield_pct <= 10):
+            raise BacktestError("--index-yield must be an annual % between 0 and 10")
         self.capital, self.segment, self.broker, self.exchange = float(capital), segment, broker, exchange
         self.slippage_bps, self.sizing, self.size_value = float(slippage_bps), sizing, float(size_value)
         self.lot_size, self.leverage, self.allow_short = int(lot_size), float(leverage), bool(allow_short)
         self.circuit_band, self.rf_pct = circuit_band, float(rf_pct)
+        self.dated_charges, self.deposit_pct = bool(dated_charges), float(deposit_pct)
+        self.index_ter_pct, self.index_yield_pct = float(index_ter_pct), float(index_yield_pct)
+
+    def leg(self, segment: str, buy: bool, price: float, qty: int, on: date) -> float:
+        """Charges for one side of a trade, at the statutory rates in force on `on` (or today's)."""
+        return charges.calculate(segment, price if buy else 0.0, 0.0 if buy else price, qty, broker=self.broker,
+                                 exchange=self.exchange, on=on if self.dated_charges else None)["total_charges"]
 
     def describe(self) -> dict:
         size = {"pct": f"{self.size_value:g}% of equity", "risk": f"risk {self.size_value:g}% of equity per trade",
@@ -540,7 +628,10 @@ class Config:
                 "slippage_bps": self.slippage_bps, "sizing": self.sizing, "size_value": self.size_value,
                 "size_rule": size, "lot_size": self.lot_size, "leverage": self.leverage,
                 "allow_short": self.allow_short, "circuit_band_pct": self.circuit_band,
-                "risk_free_pct": self.rf_pct, "charges_rates_as_of": charges.RATES_AS_OF}
+                "risk_free_pct": self.rf_pct, "charges_rates_as_of": charges.RATES_AS_OF,
+                "charge_rates": "dated" if self.dated_charges else "current",
+                "deposit_rate_pct": self.deposit_pct, "index_ter_pct": self.index_ter_pct,
+                "index_yield_pct": self.index_yield_pct}
 
 
 def combo_error(cfg: Config, p: dict) -> str | None:
@@ -617,9 +708,11 @@ def simulate(s: Series, sig: dict, p: dict, cfg: Config, start: int = 0, end: in
         px = ref * (1 - sd * slip)
         buy_px, sell_px = (pos["fill"], px) if sd == 1 else (px, pos["fill"])
         seg = "intraday" if (cfg.segment == "delivery" and pos["i"] == i) else cfg.segment
-        total = charges.calculate(seg, buy_px, sell_px, qty, broker=cfg.broker, exchange=cfg.exchange)["total_charges"]
+        entry_leg = pos["entry_leg"] if seg == cfg.segment else cfg.leg(seg, sd == 1, pos["fill"], qty, s.dates[pos["i"]])
+        total = entry_leg + cfg.leg(seg, sd != 1, px, qty, s.dates[i])
         gross = sd * (px - pos["fill"]) * qty
-        net = gross - total
+        divs = pos["dividends"]
+        net = gross - total + divs          # dividends were credited to cash on their ex-dates
         realized += gross - (total - pos["entry_leg"])
         risk = pos["risk_unit"] * qty if pos["risk_unit"] else None
         trades.append({
@@ -629,7 +722,7 @@ def simulate(s: Series, sig: dict, p: dict, cfg: Config, start: int = 0, end: in
             "exit_date": s.dates[i].isoformat(), "exit_price": px, "exit_ref": ref, "exit_reason": reason,
             "qty": qty, "lots": qty // cfg.lot_size if cfg.lot_size > 1 else None,
             "stop": pos["stop"], "target": pos["target"], "bars_held": i - pos["i"] + 1,
-            "gross_pnl": gross, "charges": total, "charges_segment": seg,
+            "gross_pnl": gross, "charges": total, "charges_segment": seg, "dividends": divs,
             "slippage": qty * (abs(pos["fill"] - pos["ref"]) + abs(px - ref)),
             "net_pnl": net, "return_pct": net / pos["equity_before"] * 100 if pos["equity_before"] > 0 else None,
             "r_multiple": net / risk if risk else None, "outcome": outcome(net),
@@ -642,6 +735,12 @@ def simulate(s: Series, sig: dict, p: dict, cfg: Config, start: int = 0, end: in
         d = s.dates[i].isoformat()
         up_lock, dn_lock = _band_locks(cfg, s.c[i - 1] if i > 0 else None, o)
         had_pos, entered = pos is not None, False
+        # 0) dividend: whoever held at the previous close is entitled to it. Delivery longs receive it;
+        #    on a futures proxy the spot drop on the ex-date is offset (futures prices carry no such gap).
+        if pos is not None and pos["i"] < i and s.div[i] and cfg.segment != "intraday":
+            amt = pos["side"] * pos["qty"] * s.div[i]
+            realized += amt
+            pos["dividends"] += amt
         # 1) exit ordered at the previous close
         if pos is not None and pend_exit:
             if dn_lock if pos["side"] == 1 else up_lock:
@@ -669,10 +768,10 @@ def simulate(s: Series, sig: dict, p: dict, cfg: Config, start: int = 0, end: in
                     dist = _stop_distance(p, atr, si, fill)       # % of the fill, or k x ATR at the signal bar
                     stop = fill - side * dist if dist else None
                     target = fill + side * p["target_r"] * dist if (dist and p["target_r"] > 0) else None
-                    leg = charges.calculate(cfg.segment, fill if side == 1 else 0.0, 0.0 if side == 1 else fill, qty,
-                                            broker=cfg.broker, exchange=cfg.exchange)["total_charges"]
+                    leg = cfg.leg(cfg.segment, side == 1, fill, qty, s.dates[i])
                     pos = {"side": side, "qty": qty, "fill": fill, "ref": o, "i": i, "si": si, "stop": stop,
-                           "target": target, "entry_leg": leg, "equity_before": realized, "risk_unit": dist}
+                           "target": target, "entry_leg": leg, "equity_before": realized, "risk_unit": dist,
+                           "dividends": 0.0}
                     realized -= leg
                     entered = True
         # 3) resting stop / target inside this bar
@@ -850,6 +949,7 @@ def trade_stats(trades: list) -> dict:
         "longest_losing_streak": longest,
         "avg_bars_held": statistics.fmean(t["bars_held"] for t in trades) if trades else None,
         "total_charges": total_ch, "total_slippage": sum(t["slippage"] for t in trades),
+        "total_dividends": sum(t.get("dividends", 0.0) for t in trades),
         "gross_profit_before_costs": gross_profit,
         "charges_pct_of_gross_profit": total_ch / gross_profit * 100 if gross_profit > 0 else None,
         "best_trade_pct_of_net": best / net * 100 if (best is not None and net > 0 and best > 0) else None,
@@ -866,22 +966,26 @@ def summarize(res: dict, cfg: Config) -> dict:
     return m
 
 
-def bh_curve(s: Series, cfg: Config, start: int, end: int, capital: float) -> tuple[list, float] | None:
+def bh_curve(s: Series, cfg: Config, start: int, end: int, capital: float) -> tuple[list, float, float] | None:
     """Delivery buy at the first open, marked at each close, sold at the last close: one round trip of
-    charges and slippage. Returns ([capital, value at each close], total charges)."""
+    charges and slippage, dividends kept as cash. Returns ([capital, value at each close], charges, dividends)."""
     slip = cfg.slippage_bps / 1e4
     fill = s.o[start] * (1 + slip)
     qty = math.floor(capital * CASH_BUFFER / fill)
     if qty <= 0 or end - start < 2:
         return None
     out_px = s.c[end - 1] * (1 - slip)
-    kw = {"broker": cfg.broker, "exchange": cfg.exchange}
-    leg = charges.calculate("delivery", fill, 0.0, qty, **kw)["total_charges"]
-    total = charges.calculate("delivery", fill, out_px, qty, **kw)["total_charges"]
-    cash = capital - qty * fill - leg
-    values = [capital] + [cash + qty * s.c[i] for i in range(start, end)]
-    values[-1] = cash + qty * out_px - (total - leg)
-    return values, total
+    leg_in = cfg.leg("delivery", True, fill, qty, s.dates[start])
+    leg_out = cfg.leg("delivery", False, out_px, qty, s.dates[end - 1])
+    cash, divs = capital - qty * fill - leg_in, 0.0
+    values = [capital]
+    for i in range(start, end):
+        if i > start and s.div[i]:           # bought at this open = not on the register at the previous close
+            cash += qty * s.div[i]
+            divs += qty * s.div[i]
+        values.append(cash + qty * s.c[i])
+    values[-1] = cash + qty * out_px - leg_out
+    return values, leg_in + leg_out, divs
 
 
 def buy_and_hold(s: Series, cfg: Config, start: int, end: int, capital: float) -> dict | None:
@@ -889,29 +993,100 @@ def buy_and_hold(s: Series, cfg: Config, start: int, end: int, capital: float) -
     if curve is None:
         return None
     m = curve_metrics(curve[0], s.dates[start:end], cfg.rf_pct)
-    m["charges"] = curve[1]
+    m["charges"], m["dividends"] = curve[1], curve[2]
     return m
 
 
-def yearly(res: dict, bh_values: list | None = None) -> list:
-    rows, prev, prev_bh = [], res["capital"], (bh_values[0] if bh_values else None)
+def deposit_curve(dates: list, capital: float, rate_pct: float) -> list:
+    """A bank fixed deposit compounding quarterly (the usual Indian FD convention), pre-tax."""
+    eff = (1 + rate_pct / 400) ** 4 - 1
+    return [capital] + [capital * (1 + eff) ** ((d - dates[0]).days / 365.25) for d in dates]
+
+
+def deposit(dates: list, cfg: Config, capital: float) -> dict:
+    m = curve_metrics(deposit_curve(dates, capital, cfg.deposit_pct), dates, cfg.rf_pct)
+    m.update({"volatility_pct": 0.0, "sharpe": None, "sortino": None, "calmar": None,
+              "rate_pct": cfg.deposit_pct, "effective_rate_pct": ((1 + cfg.deposit_pct / 400) ** 4 - 1) * 100})
+    return m
+
+
+MF_STAMP = 0.00005          # stamp duty on mutual-fund purchases from 1 Jul 2020
+MF_STT_REDEEM = 0.00001     # STT on redeeming equity mutual-fund units
+
+
+def index_fund_curve(s: Series, cfg: Config, start: int, end: int, capital: float) -> tuple[list, dict] | None:
+    """A Nifty 50 index fund bought at the first test day's close (NAV) and redeemed at the last: index
+    return (plus a dividend yield unless the series is a TRI), minus the expense ratio, stamp duty and STT."""
+    b = s.bench
+    if not b:
+        return None
+    dates = s.dates[start:end]
+    closes, j, j0 = [], -1, None
+    for d in dates:                       # forward-fill the index close onto the stock's sessions
+        while j + 1 < len(b["dates"]) and b["dates"][j + 1] <= d:
+            j += 1
+        if j0 is None:
+            j0 = j
+        closes.append(b["close"][j] if j >= 0 else None)
+    if j0 < 0 or (dates[0] - b["dates"][j0]).days > 7:
+        return None                       # the index history does not reach back to the test start
+    y = 0.0 if b["tri"] else cfg.index_yield_pct / 100
+    stamp = MF_STAMP if dates[0] >= date(2020, 7, 1) else 0.0
+    base = capital * (1 - stamp)
+    vals = [capital] + [base * (c / closes[0]) * ((1 + y) / (1 + cfg.index_ter_pct / 100)) ** ((d - dates[0]).days / 365.25)
+                        for d, c in zip(dates, closes)]
+    vals[-1] *= 1 - MF_STT_REDEEM
+    stale = (dates[-1] - b["dates"][j]).days
+    info = {"label": b["label"], "tri": b["tri"], "ter_pct": cfg.index_ter_pct,
+            "dividend_yield_pct": None if b["tri"] else cfg.index_yield_pct,
+            "basis": (f"{b['label']} TRI" if b["tri"] else f"{b['label']} price index + {cfg.index_yield_pct:g}% a year "
+                      "dividend yield") + f", minus {cfg.index_ter_pct:g}% TER, stamp duty and STT on redemption",
+            "stale_days": stale}
+    return vals, info
+
+
+def index_fund(s: Series, cfg: Config, start: int, end: int, capital: float) -> dict | None:
+    curve = index_fund_curve(s, cfg, start, end, capital)
+    if curve is None:
+        return None
+    m = curve_metrics(curve[0], s.dates[start:end], cfg.rf_pct)
+    m.update(curve[1])
+    return m
+
+
+def comparison_curves(s: Series, cfg: Config, start: int, end: int, capital: float) -> dict:
+    """Value curves ([capital, value at each close]) for buy-and-hold, a bank deposit and the index fund."""
+    bh = bh_curve(s, cfg, start, end, capital)
+    idx = index_fund_curve(s, cfg, start, end, capital)
+    return {"buy_hold": bh[0] if bh else None, "deposit": deposit_curve(s.dates[start:end], capital, cfg.deposit_pct),
+            "index_fund": idx[0] if idx else None}
+
+
+def yearly(res: dict, bh_values: list | None = None, others: dict | None = None) -> list:
+    """Calendar-year returns of the strategy and each comparison curve (same length as the equity + 1)."""
+    curves = {"buy_hold": bh_values}
+    curves.update(others or {})
+    names = [k for k, v in curves.items() if v]
+    rows, prev = [], {"strategy": res["capital"], **{k: curves[k][0] for k in names}}
     by_year: dict = {}
     for k, (d, e) in enumerate(res["equity"]):
-        by_year.setdefault(d.year, []).append((e, bh_values[k + 1] if bh_values else None))
+        by_year[d.year] = {"strategy": e, **{n: curves[n][k + 1] for n in names}}
     exits: dict = {}
     for t in res["trades"]:
         y = int(t["exit_date"][:4])
         exits[y] = exits.get(y, 0) + 1
     for y in sorted(by_year):
-        e_end, b_end = by_year[y][-1]
-        rows.append({"year": y, "strategy_pct": (e_end / prev - 1) * 100 if prev > 0 else None,
-                     "buy_hold_pct": (b_end / prev_bh - 1) * 100 if (b_end is not None and prev_bh) else None,
-                     "trades_closed": exits.get(y, 0)})
-        prev, prev_bh = e_end, b_end
+        end = by_year[y]
+        row = {"year": y}
+        for n in ["strategy"] + [k for k in curves if k != "strategy"]:
+            row[f"{n}_pct"] = (end[n] / prev[n] - 1) * 100 if (n in end and prev.get(n)) else None
+        row["trades_closed"] = exits.get(y, 0)
+        rows.append(row)
+        prev = end
     return rows
 
 
-def red_flags(m: dict, bh: dict | None, cfg: Config) -> list:
+def red_flags(m: dict, bh: dict | None, cfg: Config, dep: dict | None = None, idx: dict | None = None) -> list:
     out = []
     n = m["trades"]
     if n == 0:
@@ -934,6 +1109,13 @@ def red_flags(m: dict, bh: dict | None, cfg: Config) -> list:
     if bh and m.get("cagr_pct") is not None and bh.get("cagr_pct") is not None:
         if m["cagr_pct"] < bh["cagr_pct"] and m["max_drawdown_pct"] < bh["max_drawdown_pct"]:
             out.append("Lower return AND a deeper drawdown than buy-and-hold: the rules add nothing here.")
+    g = m.get("cagr_pct")
+    if dep and g is not None and dep.get("cagr_pct") is not None and g < dep["cagr_pct"]:
+        out.append(f"Earned {g:+.1f}% a year, less than a {cfg.deposit_pct:g}% bank deposit ({dep['cagr_pct']:+.1f}%), "
+                   "while carrying equity risk.")
+    if idx and g is not None and idx.get("cagr_pct") is not None and g < idx["cagr_pct"]:
+        out.append(f"A {idx['label']} index fund returned {idx['cagr_pct']:+.1f}% a year against {g:+.1f}% with no "
+                   "trading at all.")
     if m["years"] < 5 and m["periods_per_year"] == 252:
         out.append(f"Only {m['years']:.1f} years tested. Include at least one bad phase (2008, 2015-16, the 2018 "
                    "small/midcap fall, March 2020, the late-2024 to early-2025 correction).")
@@ -955,8 +1137,11 @@ def tax_estimate(trades: list, segment: str, slab_pct: float, capital: float, ye
             kind = "speculative"
         else:
             kind = "ltcg" if taxmod.is_long_term(d_in, d_out) else "stcg"
-        fy = buckets.setdefault(taxmod.fy_of(d_out), {"stcg": 0.0, "ltcg": 0.0, "speculative": 0.0, "business": 0.0})
-        fy[kind] += t["net_pnl"]
+        fy = buckets.setdefault(taxmod.fy_of(d_out), {"stcg": 0.0, "ltcg": 0.0, "speculative": 0.0, "business": 0.0,
+                                                      "dividends": 0.0})
+        div = t.get("dividends", 0.0) if segment != "futures" else 0.0   # futures: part of business income
+        fy[kind] += t["net_pnl"] - div
+        fy["dividends"] += div
     slab = slab_pct / 100
     rows, total = [], 0.0
     for fy in sorted(buckets):
@@ -966,7 +1151,7 @@ def tax_estimate(trades: list, segment: str, slab_pct: float, capital: float, ye
             lt, st = lt + st, 0.0
         lt_taxable = max(0.0, lt - taxmod.LTCG_EXEMPTION)
         tax = (max(0.0, st) * taxmod.STCG_RATE + lt_taxable * taxmod.LTCG_RATE
-               + (max(0.0, b["speculative"]) + max(0.0, b["business"])) * slab) * (1 + taxmod.CESS)
+               + (max(0.0, b["speculative"]) + max(0.0, b["business"]) + b["dividends"]) * slab) * (1 + taxmod.CESS)
         total += tax
         rows.append({"fy": fy, **b, "tax": tax})
     net = sum(t["net_pnl"] for t in trades)
@@ -977,7 +1162,8 @@ def tax_estimate(trades: list, segment: str, slab_pct: float, capital: float, ye
                       "ltcg_exemption": taxmod.LTCG_EXEMPTION, "slab_pct": slab_pct, "cess_pct": taxmod.CESS * 100},
             "assumptions": "Approximate. Delivery held ≤12 months = STCG 20%, >12 months = LTCG 12.5% above "
                            "₹1.25 lakh per FY; same-day/intraday = speculative and futures = business income, both "
-                           f"at a flat {slab_pct:g}% slab; 4% cess. No carry-forward of losses, surcharge, rebate or "
+                           f"at a flat {slab_pct:g}% slab; dividends at the same slab (FY of the trade's exit); "
+                           "4% cess. No carry-forward of losses, surcharge, rebate or "
                            "basic exemption. Charges are netted before tax, but STT is not deductible against "
                            "capital gains, so the real bill is slightly higher. Confirm with a CA."}
 
@@ -1134,10 +1320,12 @@ def walkforward(s: Series, strategy: str, base: dict, grid: dict, cfg: Config, m
         verdict = "degrades: out-of-sample keeps under half of the in-sample return; expect less live"
     else:
         verdict = "fails out of sample: the optimised edge did not survive unseen data"
-    bh = buy_and_hold(s, cfg, windows[0]["oos_range"][0], windows[-1]["oos_range"][1], cfg.capital)
+    a0, a1 = windows[0]["oos_range"][0], windows[-1]["oos_range"][1]
+    bh = buy_and_hold(s, cfg, a0, a1, cfg.capital)
     return {"metric": metric, "grid": grid, "base_params": base, "is_bars": is_bars, "oos_bars": oos_bars,
             "windows": windows,
-            "oos": oos, "buy_hold_oos": bh,
+            "oos": oos, "buy_hold_oos": bh, "deposit_oos": deposit(s.dates[a0:a1], cfg, cfg.capital),
+            "index_fund_oos": index_fund(s, cfg, a0, a1, cfg.capital),
             "is_vs_oos": {"mean_is_score": statistics.fmean(is_scores) if is_scores else None,
                           "mean_oos_score": statistics.fmean(oos_scores) if oos_scores else None,
                           "mean_is_cagr_pct": mean_is_cagr, "oos_cagr_pct": oos["cagr_pct"],
@@ -1287,15 +1475,33 @@ def header(name: str, strategy: str, p: dict, cfg: Config, grid: dict | None = N
 
 def print_run(r: dict, cfg: Config, show: int) -> None:
     m, bh = r["metrics"], r["buy_hold"]
+    cmp = r.get("comparison") or {}
+    dep, idx = cmp.get("deposit"), cmp.get("index_fund")
     header(r["name"], r["strategy"], r["params"], cfg)
+    basis = ("statutory rates in force on each trade date" if cfg.dated_charges else f"today's rates for every year")
     print(f"{m['start_date']} → {m['end_date']} | {m['bars']} bars ({m['years']:.2f} y) | signal on close, fill next "
-          f"open | charges as of {charges.RATES_AS_OF}")
-    print(f"\n{'':<20}{'Strategy':>12}{'Buy & hold':>14}")
+          f"open | charges: {basis}; broker pricing as of {charges.RATES_AS_OF}")
+    print(f"Dividends: {r.get('dividends_source') or 'NOT included (pass --dividends file.csv or --dividends auto)'}")
+    cols = [("Strategy", m), ("Buy & hold", bh), (f"Deposit {cfg.deposit_pct:g}%", dep), ("Nifty 50 fund", idx)]
+    print(f"\n{'':<20}" + "".join(f"{c:>15}" for c, _ in cols))
     rows = [("Total return", "total_return_pct", fpct), ("CAGR", "cagr_pct", fpct),
-            ("Max drawdown", "max_drawdown_pct", fpct), ("Volatility", "volatility_pct", lambda x: fpct(x, False)),
-            (f"Sharpe (rf {cfg.rf_pct:g}%)", "sharpe", fnum), ("Sortino", "sortino", fnum), ("Calmar", "calmar", fnum)]
+            ("Max drawdown", "max_drawdown_pct", lambda x: "0.0%" if x == 0 else fpct(x)), ("Volatility", "volatility_pct", lambda x: fpct(x, False)),
+            (f"Sharpe (rf {cfg.rf_pct:g}%)", "sharpe", fnum), ("Sortino", "sortino", fnum), ("Calmar", "calmar", fnum),
+            ("Final value", "final_equity", rupees)]
     for label, key, f in rows:
-        print(f"{label:<20}{f(m[key]):>12}{(f(bh[key]) if bh else '—'):>14}")
+        print(f"{label:<20}" + "".join(f"{(f(x.get(key)) if x else '—'):>15}" for _, x in cols))
+    divs = [rupees(m.get("total_dividends")) if r.get("dividends_source") else "—",
+            rupees(bh.get("dividends")) if (bh and r.get("dividends_source")) else "—", "—",
+            ("in TRI" if idx["tri"] else f"+{idx['dividend_yield_pct']:g}%/yr") if idx else "—"]
+    print(f"{'Dividends':<20}" + "".join(f"{x:>15}" for x in divs))
+    notes = []
+    if dep:
+        notes.append(f"Deposit: {cfg.deposit_pct:g}% compounded quarterly ({dep['effective_rate_pct']:.2f}% effective), "
+                     "pre-tax, no risk")
+    notes.append(f"Index fund: {idx['basis']}" if idx else
+                 "Index fund: no Nifty 50 data (pass --index-csv nifty.csv or --index-symbol NIFTY)")
+    for n in notes:
+        print(f"  {n}")
     print(f"\nTrades {m['trades']}: {m['wins']} win / {m['losses']} loss / {m['breakevens']} breakeven | win rate "
           f"{fpct(m['win_rate_pct'], False)} | avg win {rupees(m['avg_win'])} | avg loss {rupees(m['avg_loss'])}")
     pf = fnum(m["profit_factor"]) if m["profit_factor"] is not None else ("n/a (no losses)" if m["wins"] else "—")
@@ -1317,9 +1523,10 @@ def print_run(r: dict, cfg: Config, show: int) -> None:
               f"(pre-tax {rupees(t['pre_tax_net_pnl'])}), post-tax CAGR {fpct(t['post_tax_cagr_pct'])}. "
               "See tax.assumptions in --json.")
     if r["yearly"]:
-        print(f"\n{'Year':<6}{'Strategy':>10}{'B&H':>10}{'Trades':>8}")
+        print(f"\n{'Year':<6}{'Strategy':>10}{'B&H':>10}{'Deposit':>10}{'Nifty 50':>10}{'Trades':>8}")
         for y in r["yearly"]:
-            print(f"{y['year']:<6}{fpct(y['strategy_pct']):>10}{fpct(y['buy_hold_pct']):>10}{y['trades_closed']:>8}")
+            print(f"{y['year']:<6}{fpct(y['strategy_pct']):>10}{fpct(y['buy_hold_pct']):>10}"
+                  f"{fpct(y.get('deposit_pct')):>10}{fpct(y.get('index_fund_pct')):>10}{y['trades_closed']:>8}")
     trades = r["trades"][-show:] if show else []
     if trades:
         print(f"\nLast {len(trades)} of {len(r['trades'])} trades:")
@@ -1401,9 +1608,14 @@ def print_wf(r: dict, cfg: Config) -> None:
     print(f"\nStitched out-of-sample {o['start_date']} → {o['end_date']}: return {fpct(o['total_return_pct'])}, "
           f"CAGR {fpct(o['cagr_pct'])}, max DD {fpct(o['max_drawdown_pct'])}, Sharpe {fnum(o['sharpe'])}, "
           f"{o['trades']} trades")
-    if bh:
-        print(f"Buy & hold over the same span: return {fpct(bh['total_return_pct'])}, CAGR {fpct(bh['cagr_pct'])}, "
-              f"max DD {fpct(bh['max_drawdown_pct'])}")
+    print("Same span:")
+    for label, x in ((f"buy & hold", bh), (f"bank deposit {cfg.deposit_pct:g}%", r.get("deposit_oos")),
+                     ("Nifty 50 index fund", r.get("index_fund_oos"))):
+        if x:
+            print(f"  {label:<22} return {fpct(x['total_return_pct'])}, CAGR {fpct(x['cagr_pct'])}, "
+                  f"max DD {fpct(x['max_drawdown_pct'])}")
+        else:
+            print(f"  {label:<22} — (no data; pass --index-csv or --index-symbol NIFTY)")
     print(f"IS vs OOS: mean {r['metric']} {fnum(iv['mean_is_score'])} → {fnum(iv['mean_oos_score'])} | mean IS CAGR "
           f"{fpct(iv['mean_is_cagr_pct'])} → OOS {fpct(iv['oos_cagr_pct'])} | efficiency {fnum(iv['efficiency'])} | "
           f"param changes {iv['param_changes']} | profitable OOS windows {iv['profitable_oos_windows']}/{len(r['windows'])}")
@@ -1463,6 +1675,19 @@ def _exec_args(p) -> None:
     p.add_argument("--regime-symbol", help="benchmark via yfinance, e.g. NIFTY")
     p.add_argument("--regime-ma", type=int, default=200, help="benchmark SMA length for --regime-* (default 200)")
     p.add_argument("--rf", type=float, default=6.5, help="risk-free rate, %% a year, for Sharpe/Sortino (default 6.5)")
+    p.add_argument("--dividends", metavar="CSV|auto|none",
+                   help="cash dividends: a CSV (Date/Ex-Date, Dividend), 'auto' to fetch via yfinance for --symbol, or "
+                        "'none'. Default: auto when prices come from yfinance, otherwise none")
+    p.add_argument("--charge-rates", choices=["dated", "current"], default="dated",
+                   help="statutory charges in force on each trade date (default) or today's rates throughout")
+    p.add_argument("--deposit-rate", type=float, default=6.5,
+                   help="bank fixed-deposit rate, %% a year compounded quarterly, for the comparison (default 6.5)")
+    p.add_argument("--index-csv", help="Nifty 50 closes (CSV) for the index-fund comparison")
+    p.add_argument("--index-symbol", help="index via yfinance, e.g. NIFTY (default NIFTY when prices come from yfinance)")
+    p.add_argument("--index-tri", action="store_true", help="the index data is a total-return index (no yield added)")
+    p.add_argument("--index-yield", type=float, default=1.3,
+                   help="dividend yield %% a year added to a price index (default 1.3)")
+    p.add_argument("--index-ter", type=float, default=0.2, help="index-fund expense ratio, %% a year (default 0.2)")
     p.add_argument("--json", action="store_true")
 
 
@@ -1513,7 +1738,9 @@ def config_from_args(a) -> Config:
         sizing, val = "pct", 100.0 if a.size_pct is None else a.size_pct
     return Config(capital=a.capital, segment=a.segment, broker=a.broker, exchange=a.exchange,
                   slippage_bps=a.slippage_bps, sizing=sizing, size_value=val, lot_size=a.lot_size,
-                  leverage=a.leverage, allow_short=a.allow_short, circuit_band=a.circuit_band, rf_pct=a.rf)
+                  leverage=a.leverage, allow_short=a.allow_short, circuit_band=a.circuit_band, rf_pct=a.rf,
+                  dated_charges=a.charge_rates == "dated", deposit_pct=a.deposit_rate, index_ter_pct=a.index_ter,
+                  index_yield_pct=a.index_yield)
 
 
 def load_from_args(a) -> Series:
@@ -1540,12 +1767,29 @@ def load_from_args(a) -> Series:
         else:
             bench, label = ta.fetch_yf(a.regime_symbol, a.exchange, a.period, "1d"), a.regime_symbol.upper()
         attach_regime(s, bench, a.regime_ma, label)
+    from_yf = not (a.csv or a.candles)
+    mode = (a.dividends or ("auto" if from_yf else "none")).strip()
+    if mode.lower() == "auto":
+        if not a.symbol:
+            raise BacktestError("--dividends auto needs --symbol (to fetch dividends via yfinance)")
+        attach_dividends(s, fetch_yf_dividends(a.symbol, a.exchange), f"yfinance ({ta.yf_ticker(a.symbol, a.exchange)})")
+    elif mode.lower() != "none":
+        attach_dividends(s, load_dividends_csv(mode), Path(mode).name)
+    if a.index_csv:
+        if not Path(a.index_csv).is_file():
+            raise BacktestError(f"file not found: {a.index_csv}")
+        attach_index(s, ta.load_csv(a.index_csv), "Nifty 50" if "nifty" in Path(a.index_csv).stem.lower()
+                     else Path(a.index_csv).stem, a.index_tri)
+    elif a.index_symbol or from_yf:
+        sym = a.index_symbol or "NIFTY"
+        attach_index(s, ta.fetch_yf(sym, a.exchange, a.period, "1d"),
+                     "Nifty 50" if sym.upper() in ("NIFTY", "NIFTY50", "^NSEI") else sym.upper(), a.index_tri)
     return s
 
 
 def write_trades(path: str, trades: list, symbol: str, strategy: str, segment: str) -> None:
     cols = ["date", "exit_date", "symbol", "side", "entry", "exit", "stop", "qty", "charges", "pnl", "setup",
-            "segment", "exit_reason", "bars_held", "gross_pnl", "slippage", "return_pct", "r_multiple"]
+            "segment", "exit_reason", "bars_held", "gross_pnl", "slippage", "return_pct", "r_multiple", "dividends"]
     r2 = lambda x, d=2: "" if x is None else round(x, d)
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
@@ -1554,7 +1798,7 @@ def write_trades(path: str, trades: list, symbol: str, strategy: str, segment: s
             w.writerow([t["entry_date"], t["exit_date"], symbol, t["side"], r2(t["entry_price"], 4),
                         r2(t["exit_price"], 4), r2(t["stop"], 4), t["qty"], r2(t["charges"]), r2(t["net_pnl"]),
                         strategy, segment, t["exit_reason"], t["bars_held"], r2(t["gross_pnl"]),
-                        r2(t["slippage"]), r2(t["return_pct"], 6), r2(t["r_multiple"], 4)])
+                        r2(t["slippage"]), r2(t["return_pct"], 6), r2(t["r_multiple"], 4), r2(t.get("dividends", 0.0))])
 
 
 def main(argv=None) -> int:
@@ -1605,13 +1849,40 @@ def _run(a) -> int:
             raise BacktestError("--slab-pct must be between 0 and 50")
         res, m = run_one(s, a.strategy, p, cfg, start)
         bh = buy_and_hold(s, cfg, start, s.n, cfg.capital)
+        dep = deposit(s.dates[start:], cfg, cfg.capital)
+        idx = index_fund(s, cfg, start, s.n, cfg.capital)
+        curves = comparison_curves(s, cfg, start, s.n, cfg.capital)
+        notes = list(s.notes)
+        if cfg.dated_charges:
+            rn = charges.rate_notes_between(s.dates[start], s.dates[-1], cfg.exchange)
+            if rn["changes_on"]:
+                notes.append("Statutory charge rates changed during the test on " + ", ".join(rn["changes_on"])
+                             + "; each leg is charged at the rates in force that day.")
+            notes += [f"Charge-rate approximation: {x}" for x in rn["approximations"]]
+            notes.append(f"Broker brokerage and DP charges use {cfg.describe()['broker_name']}'s pricing as of "
+                         f"{charges.RATES_AS_OF} for every year.")
+        if s.bench is None:
+            notes.append("No index data: the Nifty 50 fund column is empty (pass --index-csv or --index-symbol NIFTY).")
+        elif idx is None:
+            notes.append("The index data does not cover the test start: the Nifty 50 fund column is empty.")
+        elif idx["stale_days"] > 7:
+            notes.append(f"The index data ends {idx['stale_days']} days before the stock data; its last close is carried.")
         out = {"command": "run", "name": s.name, "strategy": a.strategy, "params": p, "config": cfg.describe(),
-               "metrics": m, "buy_hold": bh, "yearly": yearly(res, (bh_curve(s, cfg, start, s.n, cfg.capital) or (None,))[0]),
+               "metrics": m, "buy_hold": bh, "comparison": {"strategy": m, "buy_hold": bh, "deposit": dep,
+                                                            "index_fund": idx},
+               "dividends_source": s.div_source,
+               "yearly": yearly(res, curves["buy_hold"], {"deposit": curves["deposit"],
+                                                          "index_fund": curves["index_fund"]}),
                "trades": res["trades"], "events": res["events"], "regime": s.regime_label,
-               "red_flags": red_flags(m, bh, cfg), "notes": s.notes,
+               "red_flags": red_flags(m, bh, cfg, dep, idx), "notes": notes,
                "assumptions": ["signal on bar close, fill at the next bar's open", "stops/targets: gap fills at the open; "
                                "stop wins when one bar hits both", "open position closed at the last close",
-                               "idle cash earns nothing (Sharpe subtracts the risk-free rate)"]}
+                               "idle cash earns nothing (Sharpe subtracts the risk-free rate)",
+                               "dividends credited on the ex-date to whoever held at the previous close, kept as cash"
+                               if s.div_source else "dividends not included",
+                               "charges: statutory rates dated to each leg, broker pricing as of today"
+                               if cfg.dated_charges else "charges: today's rates for every year",
+                               "deposit and index fund are pre-tax"]}
         if a.tax:
             out["tax"] = tax_estimate(res["trades"], cfg.segment, a.slab_pct, cfg.capital, m["years"])
         if a.trades_csv:

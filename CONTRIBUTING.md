@@ -24,6 +24,7 @@ docs/assets/                        README images
 | What | File | Constant |
 |---|---|---|
 | STT, exchange, SEBI, stamp, GST | `skills/trading-costs/scripts/charges.py` | `STT`, `EXCHANGE_TXN`, `SEBI_FEE`, `STAMP`, `GST` |
+| Past statutory rates (for backtests) | `charges.py` | `RATE_HISTORY` (add an era with its start date whenever you change a constant above; the last era must equal the current constants, and `verified` must be `True` only with an official source) |
 | Broker brokerage, DP, MTF | `charges.py` | `BROKERS` |
 | Lot sizes | `skills/fno-options-analysis/scripts/options.py` | `LOT_SIZES` |
 | Holidays | `options.py` + `skills/indian-market-structure/references/holidays-2026.md` | `HOLIDAYS`, `HOLIDAYS_KNOWN_UNTIL` |

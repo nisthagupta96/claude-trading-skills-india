@@ -3,10 +3,11 @@ name: backtest-lab
 description: |
   Backtests rule-based swing ideas on NSE/BSE daily bars with Indian frictions built in: decide on
   the close and fill at the next open, gap-through stops, slippage, exact per-trade charges by
-  segment and broker (STT, stamp duty, GST, DP), whole shares or lots, circuit-band no-fills,
-  futures-only shorts and an optional STCG/LTCG estimate. Six built-in strategies; CAGR vs
-  buy-and-hold, drawdown, Sharpe/Sortino, profit factor, expectancy in ₹ and R; parameter sweeps
-  with a plateau-or-spike read, walk-forward and Monte Carlo. backtest.py, stdlib only, offline.
+  segment and broker at the rates in force on each trade date, dividends, whole shares or lots,
+  circuit-band no-fills, futures-only shorts, optional STCG/LTCG estimate. Six built-in strategies;
+  every run is compared with buy-and-hold, a bank deposit and a Nifty 50 index fund (CAGR,
+  drawdown, Sharpe/Sortino); profit factor, expectancy in ₹ and R; sweeps with a plateau-or-spike
+  read, walk-forward and Monte Carlo. backtest.py, stdlib only, offline.
 
   Use when the user asks: "backtest this strategy", "would a 20/50 crossover have worked on X",
   "is this edge real or curve-fit", "optimise my parameters", "walk-forward test", "Monte Carlo my
@@ -27,6 +28,8 @@ python3 scripts/backtest.py strategies                                  # rules 
 python3 scripts/backtest.py run --csv tcs.csv --strategy sma-cross --params fast=20 slow=50
 python3 scripts/backtest.py run --symbol POLYCAB --strategy 52w-high --risk-pct 1 --tax --trades-csv t.csv
 python3 scripts/backtest.py run --csv hdfcbank.csv --strategy donchian-breakout --regime-csv nifty.csv
+python3 scripts/backtest.py run --csv tcs.csv --symbol TCS --dividends auto --index-csv nifty.csv \
+    --strategy donchian-breakout --deposit-rate 7
 python3 scripts/backtest.py run --csv nifty.csv --strategy sma-cross --segment futures --lot-size 65 \
     --allow-short --leverage 3 --size-pct 300
 python3 scripts/backtest.py sweep --csv tcs.csv --strategy sma-cross --grid fast=10,20,30 slow=50,100,200
@@ -62,8 +65,21 @@ rules are added to the script as reviewed code.
 - **Stops and targets** rest in the market. A gap through the level fills at the open (a stop at ₹101
   after a ₹96 open books ₹96). If one bar touches both, the stop is assumed to have filled first.
 - **Slippage** `--slippage-bps` (default 5) on every fill. Use 15–30 for small caps.
-- **Charges** come from `trading-costs` (charges.py) for each round trip, by `--segment
+- **Charges** come from `trading-costs` (charges.py) for each leg, by `--segment
   delivery|intraday|futures` and `--broker`. A delivery buy sold the same day is charged as intraday.
+  Each leg pays the statutory rates in force on its own date (`RATE_HISTORY` in charges.py: STT,
+  exchange charges, SEBI fee, stamp duty, GST or service tax, from June 2013), so a 2019 trade pays
+  2019 STT and a 2026 futures exit pays the April 2026 STT. Broker brokerage and DP charges use
+  today's pricing for every year. Eras that are approximations (NSE slab rates before Oct 2024,
+  state-wise stamp duty before July 2020, the SEBI fee date, BSE rates) are listed under data notes.
+  `--charge-rates current` charges today's rates throughout, for comparison.
+- **Dividends** are credited in cash on the ex-date to whoever held at the previous close: a buy that
+  fills on the ex-date open gets nothing. Buy-and-hold gets them the same way. They are kept as cash,
+  not reinvested, and the real payment date (weeks later) is ignored. With `--symbol` they are fetched
+  from yfinance; with `--csv`, pass `--dividends file.csv` (Date or Ex-Date, Dividend; per share, on the
+  same split basis as the prices) or `--dividends auto` with `--symbol`. Without them the header says
+  "Dividends: NOT included". Intraday trades get none. On a futures proxy (spot prices) a long is
+  credited and a short debited, because real futures do not fall by the dividend on the ex-date.
 - **Sizing**: `--size-pct` (default 100% of equity), `--risk-pct` (risk to the initial stop, the
   `position-sizing` method) or `--fixed-inr`. The size is set on the signal close, capped by the cash
   available at the fill, and rounded down to whole shares or whole `--lot-size` lots (futures, SME).
@@ -77,14 +93,26 @@ rules are added to the script as reviewed code.
   benchmark closes above its `--regime-ma` (200) SMA on the signal day, and shorts only below it.
 - **Cash** earns nothing. Sharpe and Sortino subtract `--rf` (default 6.5% a year, about a liquid
   fund or T-bill; change it).
+- **Comparison table** (every `run`, and the out-of-sample span of `walkforward`), all with the same
+  capital and dates:
+  - *Buy & hold*: the same stock, one delivery round trip, dividends included.
+  - *Deposit*: a bank FD at `--deposit-rate` (default 6.5%) compounded quarterly, pre-tax, no risk.
+  - *Nifty 50 fund*: an index fund bought at the first test day's close. Index data comes from
+    `--index-csv nifty.csv` or `--index-symbol NIFTY` (automatic when prices come from yfinance).
+    Yahoo's ^NSEI is a price index, so `--index-yield` (default 1.3% a year) is added for dividends;
+    pass `--index-tri` if the file is the Nifty 50 TRI. `--index-ter` (default 0.2%) is deducted, plus
+    0.005% stamp duty on purchase (from July 2020) and 0.001% STT on redemption. All pre-tax.
+- **Dividends under `--tax`** are taxed at `--slab-pct` (they have been slab income since FY 2020-21).
 - **`--tax`** applies `indian-tax-for-traders` rates for a rough post-tax view: STCG 20% (held ≤12
   months), LTCG 12.5% above ₹1.25 lakh per FY, intraday and futures at `--slab-pct`, plus 4% cess.
   It is approximate: losses are not carried forward and STT is treated as deductible, which it is not.
 
 ## Reading the output
 
-- **Versus buy-and-hold** (delivery, one round trip). A rule earns its keep with a better Sharpe or
-  Calmar, or a much smaller drawdown, not just a higher return in a bull market.
+- **Versus buy-and-hold, a deposit and the Nifty 50 fund.** A rule earns its keep with a better Sharpe
+  or Calmar, or a much smaller drawdown, not just a higher return in a bull market. Two red flags are
+  automatic: CAGR below the deposit (equity risk for less than an FD pays) and CAGR below the index
+  fund (trading effort for less than doing nothing).
 - **Max drawdown and longest underwater stretch**: would you have kept following the rules through it?
 - **Profit factor** (after charges) below 1.2 is thin. Above 2 on fewer than 30 trades is suspicious.
 - **Expectancy**: about +0.2R or more after costs is worth a closer look. Breakeven trades (net ₹0)
@@ -114,7 +142,8 @@ rules are added to the script as reviewed code.
 5. **Regime**: does it only work in 2020–21-style rallies? Check the yearly rows, add `--regime-csv`,
    and include a bad phase (2008, 2015–16, 2018 small caps, March 2020, late 2024–early 2025).
 6. **Data**: Yahoo history usually adjusts splits and bonuses, but not always. Moves of 25% or more
-   overnight are flagged; check them. Dividends are left out for both the strategy and buy-and-hold.
+   overnight are flagged; check them. Dividends are included when the header says so; a stock that
+   pays 1–3% a year makes buy-and-hold look worse than it was if they are missing.
 7. **Small samples**: under 30 trades is an anecdote. Run the same rules on several stocks and look
    at the spread of results, not the best one.
 8. **Execution**: thin names lock at circuits and slip more (`--circuit-band`, higher slippage). Stop
@@ -140,11 +169,14 @@ options, no tick rounding.
 
 ```
 NAME: strategy (params) | segment on NSE via broker | capital | sizing | slippage
-start → end | bars (years) | signal on close, fill next open | charges as of <date>
-Strategy vs Buy & hold: total return, CAGR, max DD, volatility, Sharpe (rf), Sortino, Calmar
+start → end | bars (years) | signal on close, fill next open | charges basis | broker pricing date
+Dividends: source, or NOT included
+Strategy | Buy & hold | Deposit | Nifty 50 fund: total return, CAGR, max DD, volatility, Sharpe (rf),
+  Sortino, Calmar, final value, dividends; deposit and index-fund basis lines
 Trades N: W / L / BE | win rate | avg win / loss | PF | expectancy ₹ (R) | payoff | losing streak
 Exposure | avg hold | max DD dates | longest underwater | charges (% of gross profit) | slippage
-Year table | last trades | order events | red flags | data notes
+Year table (strategy, B&H, deposit, Nifty 50, trades) | last trades | order events | red flags
+Data notes: dividends booked, charge-rate changes and approximations in the test window
 ```
 
 _Educational analysis, not investment advice. A backtest describes the past, not your next trade._

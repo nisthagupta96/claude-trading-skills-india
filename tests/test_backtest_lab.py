@@ -136,13 +136,14 @@ class TestExecution(unittest.TestCase):
 
     def test_charges_match_trading_costs(self):
         t = self.res["trades"][0]
-        ref = charges.calculate("delivery", 107.0, 96.0, t["qty"], broker="zerodha")
+        ref = charges.calculate("delivery", 107.0, 96.0, t["qty"], broker="zerodha", on=t["entry_date"])
         self.assertAlmostEqual(t["charges"], ref["total_charges"], places=9)
         self.assertAlmostEqual(t["gross_pnl"], ref["gross_pnl"], places=9)
         self.assertAlmostEqual(t["net_pnl"], ref["net_pnl"], places=9)
         groww = backtest(self.rows, broker="groww")[0]["trades"][0]
         self.assertAlmostEqual(groww["charges"],
-                               charges.calculate("delivery", 107.0, 96.0, groww["qty"], broker="groww")["total_charges"])
+                               charges.calculate("delivery", 107.0, 96.0, groww["qty"], broker="groww",
+                                                 on=groww["entry_date"])["total_charges"])
         self.assertAlmostEqual(self.res["final_equity"], 100_000 + sum(x["net_pnl"] for x in self.res["trades"]))
 
     def test_same_day_delivery_exit_charged_as_intraday(self):
@@ -150,7 +151,8 @@ class TestExecution(unittest.TestCase):
         t = backtest(bars(spec))[0]["trades"][0]
         self.assertEqual((t["entry_index"], t["exit_index"], t["charges_segment"]), (21, 21, "intraday"))
         self.assertAlmostEqual(t["charges"],
-                               charges.calculate("intraday", 107, 101.65, t["qty"], broker="zerodha")["total_charges"])
+                               charges.calculate("intraday", 107, 101.65, t["qty"], broker="zerodha",
+                                                 on=t["entry_date"])["total_charges"])
 
     def test_sizing_whole_shares_cash_capped(self):
         t1 = self.res["trades"][0]
@@ -169,7 +171,7 @@ class TestExecution(unittest.TestCase):
         self.assertEqual((t["side"], t["entry_price"], t["qty"], t["lots"]), ("short", 93, 1050, 21))
         self.assertEqual((t["exit_reason"], t["exit_price"]), ("end of test", 81))
         self.assertAlmostEqual(t["gross_pnl"], (93 - 81) * 1050)
-        self.assertAlmostEqual(t["charges"], charges.calculate("futures", 81, 93, 1050)["total_charges"])
+        self.assertAlmostEqual(t["charges"], charges.calculate("futures", 81, 93, 1050, on=t["entry_date"])["total_charges"])
         self.assertAlmostEqual(t["stop"], 93 * 1.05)
 
     def test_short_refused_outside_futures(self):
@@ -486,6 +488,106 @@ class TestMonteCarlo(unittest.TestCase):
             self.assertEqual(strict_json(out)["montecarlo"]["trades"], d["montecarlo"]["trades"])
 
 
+class TestDividendsChargesComparisons(unittest.TestCase):
+    """Dividends, dated charge legs, and the deposit / index-fund comparison columns."""
+    HOLD = FLAT + [SIGNAL, (107, 109, 106, 108), (108, 109, 107, 108), (108, 109, 107, 108)]   # fill bar 21
+
+    def sim(self, spec, divs=(), params=DONCHIAN, **cfg):
+        kw = {"capital": 100_000, "slippage_bps": 0}
+        kw.update(cfg)
+        s = bt.Series(bars(spec), "test")
+        bt.attach_dividends(s, [(s.dates[i], amt) for i, amt in divs], "test")
+        c = bt.Config(**kw)
+        res, m = bt.run_one(s, "donchian-breakout", bt.make_params("donchian-breakout", list(params)), c)
+        return res, m, s, c
+
+    def test_dividend_credited_to_holder_at_previous_close(self):
+        res, m, s, c = self.sim(self.HOLD, divs=[(22, 2.0)])
+        t = res["trades"][0]
+        self.assertEqual(t["entry_index"], 21)
+        self.assertAlmostEqual(t["dividends"], t["qty"] * 2.0)
+        self.assertAlmostEqual(t["net_pnl"], t["gross_pnl"] - t["charges"] + t["dividends"])
+        self.assertAlmostEqual(res["final_equity"], 100_000 + t["net_pnl"])
+        self.assertAlmostEqual(m["total_dividends"], t["qty"] * 2.0)
+
+    def test_no_dividend_when_bought_on_the_ex_date(self):
+        res = self.sim(self.HOLD, divs=[(21, 2.0)])[0]
+        self.assertEqual(res["trades"][0]["dividends"], 0.0)
+
+    def test_intraday_gets_no_dividend_and_futures_short_pays_it(self):
+        res = self.sim(self.HOLD, divs=[(22, 2.0)], segment="intraday")[0]
+        self.assertTrue(all(x["dividends"] == 0.0 for x in res["trades"]))
+        spec = FLAT + [(100, 100.5, 94.5, 95), (93, 94, 91, 92), (92, 92.5, 85, 86), (86, 86.5, 80, 81)]
+        res = self.sim(spec, divs=[(22, 1.5)], segment="futures", lot_size=50, allow_short=True)[0]
+        t = res["trades"][0]
+        self.assertEqual((t["side"], t["qty"]), ("short", 1050))
+        self.assertAlmostEqual(t["dividends"], -1050 * 1.5)       # spot drop offset on a futures proxy
+
+    def test_buy_and_hold_collects_dividends_after_the_first_open(self):
+        s = bt.Series(bars(self.HOLD), "test")
+        bt.attach_dividends(s, [(s.dates[0], 5.0), (s.dates[10], 3.0)], "test")
+        c = bt.Config(capital=100_000, slippage_bps=0)
+        values, ch, divs = bt.bh_curve(s, c, 0, s.n, 100_000)
+        qty = math.floor(100_000 * bt.CASH_BUFFER / 100)
+        self.assertAlmostEqual(divs, qty * 3.0)                  # bought at bar 0's open: no bar-0 dividend
+        self.assertAlmostEqual(values[11] - values[10], qty * (s.c[10] - s.c[9]) + qty * 3.0)
+
+    def test_dividend_csv_and_ex_date_on_holiday(self):
+        s = bt.Series(bars(self.HOLD), "test")                    # 2026-01-05 is a Monday
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "d.csv"
+            path.write_text("Ex-Date,Dividend\n2026-01-10,4.5\n2030-01-01,9\nbad,1\n", encoding="utf-8")
+            bt.attach_dividends(s, bt.load_dividends_csv(str(path)), "d.csv")
+        self.assertEqual(s.div[s.dates.index(date(2026, 1, 12))], 4.5)   # Saturday ex-date -> Monday
+        self.assertEqual(sum(s.div), 4.5)
+
+    def test_legs_priced_at_their_own_dates(self):
+        spec = FLAT + [SIGNAL, (107, 109, 106, 108)] + [(108, 109, 107, 108)] * 60      # spans 1 Mar 2026
+        res, _, s, c = self.sim(spec)
+        t = res["trades"][0]
+        self.assertLess(date.fromisoformat(t["entry_date"]), date(2026, 3, 1))
+        self.assertGreaterEqual(date.fromisoformat(t["exit_date"]), date(2026, 3, 1))
+        legs = (charges.calculate("delivery", t["entry_price"], 0, t["qty"], on=t["entry_date"])["total_charges"]
+                + charges.calculate("delivery", 0, t["exit_price"], t["qty"], on=t["exit_date"])["total_charges"])
+        self.assertAlmostEqual(t["charges"], legs, places=9)
+        cur = self.sim(spec, dated_charges=False)[0]["trades"][0]
+        self.assertAlmostEqual(cur["charges"], charges.calculate("delivery", t["entry_price"], t["exit_price"],
+                                                                 t["qty"])["total_charges"], places=9)
+
+    def test_deposit_compounds_quarterly(self):
+        dates = [date(2024, 1, 1) + timedelta(days=k) for k in range(0, 731)]
+        c = bt.Config(deposit_pct=8.0)
+        d = bt.deposit(dates, c, 100_000)
+        self.assertAlmostEqual(d["cagr_pct"], ((1 + 0.02) ** 4 - 1) * 100, places=6)
+        self.assertEqual((d["max_drawdown_pct"], d["sharpe"]), (0.0, None))
+
+    def test_index_fund_hand_check(self):
+        s = bt.Series(bars([(100, 101, 99, 100)] * 40), "test")
+        bench = [{"date": d, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1000.0 + 10 * k}
+                 for k, d in enumerate(s.dates)]
+        bt.attach_index(s, bench, "Nifty 50", tri=True)
+        c = bt.Config(index_ter_pct=0.5)
+        vals, info = bt.index_fund_curve(s, c, 0, s.n, 100_000)
+        days = (s.dates[-1] - s.dates[0]).days
+        want = 100_000 * (1 - bt.MF_STAMP) * (1390 / 1000) / 1.005 ** (days / 365.25) * (1 - bt.MF_STT_REDEEM)
+        self.assertAlmostEqual(vals[-1], want, places=6)
+        self.assertIn("TRI", info["basis"])
+        bt.attach_index(s, bench, "Nifty 50", tri=False)
+        c2 = bt.Config(index_ter_pct=0.0, index_yield_pct=2.0)
+        v2 = bt.index_fund_curve(s, c2, 0, s.n, 100_000)[0]
+        self.assertAlmostEqual(v2[-1], 100_000 * (1 - bt.MF_STAMP) * 1.39 * 1.02 ** (days / 365.25)
+                               * (1 - bt.MF_STT_REDEEM), places=6)
+        late = bt.Series(bars([(100, 101, 99, 100)] * 40), "test")
+        bt.attach_index(late, bench[20:], "Nifty 50")
+        self.assertIsNone(bt.index_fund_curve(late, c, 0, late.n, 100_000))   # index starts after the test
+
+    def test_red_flags_against_deposit_and_index(self):
+        m = {"trades": 40, "cagr_pct": 3.0, "max_drawdown_pct": -5.0, "years": 6, "periods_per_year": 252}
+        flags = bt.red_flags(m, None, bt.Config(), {"cagr_pct": 6.6}, {"cagr_pct": 12.0, "label": "Nifty 50"})
+        self.assertTrue(any("bank deposit" in f for f in flags))
+        self.assertTrue(any("Nifty 50 index fund" in f for f in flags))
+
+
 class TestCLI(unittest.TestCase):
     def test_run_json_is_strict(self):
         rc, out, _ = cli(["run", "--csv", TINY, "--strategy", "donchian-breakout", "--params"] + DONCHIAN +
@@ -497,6 +599,37 @@ class TestCLI(unittest.TestCase):
         self.assertIn("buy_hold", d)
         self.assertIn("tax", d)
         self.assertIsNone(d["metrics"]["profit_factor"] if d["metrics"]["losses"] == 0 else None)
+
+    def test_run_comparison_table_with_index_and_dividends(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dpath = Path(tmp) / "div.csv"
+            dpath.write_text("Date,Dividend\n2023-08-10,6\n2024-08-09,7\n", encoding="utf-8")
+            args = ["run", "--csv", TREND, "--strategy", "sma-cross", "--params", "fast=10", "slow=40",
+                    "--index-csv", BENCH, "--dividends", str(dpath)]
+            rc, out, _ = cli(args)
+            self.assertEqual(rc, 0)
+            for s in ("Strategy", "Buy & hold", "Deposit 6.5%", "Nifty 50 fund", "Dividends", "Final value",
+                      "statutory rates in force on each trade date"):
+                self.assertIn(s, out)
+            rc, out, _ = cli(args + ["--json"])
+            d = strict_json(out)
+        cmp = d["comparison"]
+        self.assertEqual(set(cmp), {"strategy", "buy_hold", "deposit", "index_fund"})
+        self.assertGreater(cmp["buy_hold"]["dividends"], 0)
+        self.assertIsNotNone(cmp["index_fund"]["cagr_pct"])
+        self.assertIn("deposit_pct", d["yearly"][0])
+        self.assertIn("index_fund_pct", d["yearly"][0])
+        self.assertEqual(d["config"]["charge_rates"], "dated")
+        self.assertTrue(any("2024-10-01" in n for n in d["notes"]))
+
+    def test_run_without_index_or_dividends_says_so(self):
+        rc, out, _ = cli(["run", "--csv", TINY, "--strategy", "donchian-breakout", "--params"] + DONCHIAN)
+        self.assertEqual(rc, 0)
+        self.assertIn("Dividends: NOT included", out)
+        self.assertIn("no Nifty 50 data", out)
+        rc, _, err = cli(["run", "--csv", TINY, "--strategy", "sma-cross", "--dividends", "auto"])
+        self.assertEqual(rc, 2)
+        self.assertIn("--symbol", err)
 
     def test_text_run_and_strategies(self):
         rc, out, _ = cli(["run", "--csv", TREND, "--strategy", "52w-high", "--params", "lookback=100"])

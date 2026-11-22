@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+More honest backtests in `backtest-lab`, and dated charge rates in `trading-costs` (576 tests).
+
+- Dividends: the strategy and buy-and-hold now collect cash dividends on ex-dates (fetched from
+  yfinance with `--symbol`, or `--dividends file.csv`). Futures proxies offset the ex-date drop.
+  Under `--tax` dividends are taxed at the slab rate.
+- Dated charges: every leg pays the STT, exchange charges, SEBI fee, stamp duty and GST/service tax in
+  force on its own date (`RATE_HISTORY` in `charges.py`, June 2013 onwards, approximate eras flagged).
+  `charges.py --on YYYY-MM-DD` and `calculate(..., on=date)` expose the same history.
+  `--charge-rates current` keeps the old behaviour.
+- Comparison table on every run (and the walk-forward out-of-sample span): strategy, buy-and-hold, a
+  bank deposit (`--deposit-rate`, quarterly compounding) and a Nifty 50 index fund (`--index-csv` or
+  `--index-symbol`, TER, stamp duty and STT included). Yearly rows carry all four, and new red flags
+  fire when the strategy trails the deposit or the index fund.
+
 ## 1.3.0 — 2026-11-13
 
 Six new skills, each with a standard-library calculator and tests (35 skills, 560 tests).

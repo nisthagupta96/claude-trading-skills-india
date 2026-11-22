@@ -26,7 +26,13 @@ python3 scripts/charges.py --segment futures  --buy 25000 --sell 25100 --qty 65 
 python3 scripts/charges.py --segment mtf --buy 500 --sell 540 --qty 400 --broker zerodha --mtf-days 20 --mtf-funded 100000
 python3 scripts/charges.py ... --brokerage-pct 0.05 --brokerage-cap 20      # any other broker
 python3 scripts/charges.py ... --json                                       # machine-readable
+python3 scripts/charges.py --segment futures --buy 25000 --sell 25100 --qty 65 --on 2022-06-15  # past rates
 ```
+
+`--on YYYY-MM-DD` (or `calculate(..., on=date)` from Python) uses the statutory and exchange rates in
+force that day, from `RATE_HISTORY` in the script (June 2013 onwards: STT, NSE exchange charges, SEBI
+fee, stamp duty, GST or service tax). Broker brokerage and DP charges stay at today's pricing.
+Approximate eras are printed with the result. `backtest-lab` charges every leg this way.
 
 Options prices are **premiums per unit**, and `--qty` is in units (lots × lot size). Pass only `--buy`
 or only `--sell` to price one leg. The report shows the breakeven sell price (long) and buy-back price

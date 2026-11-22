@@ -68,6 +68,142 @@ STAMP = {"delivery": 0.00015, "mtf": 0.00015, "intraday": 0.00003,
 SEBI_BROKERAGE_CAP_CASH = 0.025
 
 # ---------------------------------------------------------------------------
+# Rate history: the statutory and exchange rates in force on a given date, for backtests
+# that span years (calculate(..., on=date)). Each era changes only what it lists, from its
+# start date on. Broker brokerage and DP charges are NOT dated: every era uses BROKERS below.
+#   verified=True : taken from the Finance Act, a SEBI circular or the exchange's own notice
+#   verified=False: a documented approximation; backtests print the note so the reader knows
+# The last era must reproduce the current constants above (tests/test_charges.py checks it).
+# ---------------------------------------------------------------------------
+RATE_HISTORY_START = "2013-06-01"
+_BASELINE = {   # from 1 Jun 2013 (Finance Act 2013 STT cuts)
+    "STT": {"delivery": {"buy": 0.001, "sell": 0.001}, "mtf": {"buy": 0.001, "sell": 0.001},
+            "intraday": {"buy": 0.0, "sell": 0.00025}, "futures": {"buy": 0.0, "sell": 0.0001},
+            "options": {"buy": 0.0, "sell": 0.0005}},
+    "EXCHANGE_TXN": {
+        "NSE": {"delivery": 0.0000325, "mtf": 0.0000325, "intraday": 0.0000325,
+                "futures": 0.000019, "options": 0.0005},
+        "BSE": dict(EXCHANGE_TXN["BSE"]),
+    },
+    "SEBI_FEE": 15 / 1e7,
+    "STAMP": {"delivery": 0.0001, "mtf": 0.0001, "intraday": 0.00002, "futures": 0.00002, "options": 0.00002},
+    "GST": 0.1236,     # service tax 12% + 3% education cess
+}
+# Components of the baseline that are approximations, until an era replaces them.
+_BASELINE_APPROX = {
+    "EXCHANGE_TXN.NSE": "NSE charged turnover slabs before Oct 2024; the top-slab rate is used "
+                        "(differences are under ₹0.25 per ₹1 lakh traded in cash).",
+    "EXCHANGE_TXN.BSE": "BSE transaction charges use today's schedule for every year.",
+    "STAMP": "Stamp duty before 1 Jul 2020 was set state by state; a typical Maharashtra rate is used "
+             "(0.01% delivery buy, 0.002% intraday and F&O buy).",
+    "SEBI_FEE": "SEBI turnover fee ₹15/crore before the 2020 cut to ₹10/crore.",
+}
+RATE_HISTORY = [
+    {"from": "2015-06-01", "verified": True, "set": {"GST": 0.14}, "note": "Service tax 14%."},
+    {"from": "2015-11-15", "verified": True, "set": {"GST": 0.145}, "note": "Service tax 14% + Swachh Bharat cess 0.5%."},
+    {"from": "2016-06-01", "verified": True, "set": {"GST": 0.15}, "note": "Service tax 14% + SBC 0.5% + KKC 0.5%."},
+    {"from": "2017-07-01", "verified": True, "set": {"GST": 0.18}, "note": "GST 18% replaces service tax."},
+    {"from": "2020-06-01", "verified": False, "set": {"SEBI_FEE": 10 / 1e7},
+     "note": "SEBI turnover fee ₹10/crore; the effective date of the cut from ₹15 is approximate."},
+    {"from": "2020-07-01", "verified": True,
+     "set": {"STAMP": {"delivery": 0.00015, "mtf": 0.00015, "intraday": 0.00003, "futures": 0.00002,
+                       "options": 0.00003}},
+     "note": "Uniform stamp duty under the amended Indian Stamp Act."},
+    {"from": "2021-01-01", "verified": False,
+     "set": {"EXCHANGE_TXN.NSE": {"delivery": 0.0000345, "mtf": 0.0000345, "intraday": 0.0000345,
+                                  "futures": 0.00002, "options": 0.00053}},
+     "note": "NSE top-slab rates from Jan 2021 (cash 0.00345%); smaller NSE revisions up to Sep 2024 are not "
+             "tracked (under ₹0.25 per ₹1 lakh traded in cash)."},
+    {"from": "2023-04-01", "verified": True,
+     "set": {"STT.futures.sell": 0.000125, "STT.options.sell": 0.000625},
+     "note": "Finance Act 2023: STT on futures 0.0125%, options 0.0625% of premium."},
+    {"from": "2024-10-01", "verified": True,
+     "set": {"STT.futures.sell": 0.0002, "STT.options.sell": 0.001,
+             "EXCHANGE_TXN.NSE": {"delivery": 0.0000297, "mtf": 0.0000297, "intraday": 0.0000297,
+                                  "futures": 0.0000173, "options": 0.0003503}},
+     "note": "Finance (No. 2) Act 2024 STT (futures 0.02%, options 0.1%); SEBI true-to-label flat exchange "
+             "charges (NSE cash 0.00297%)."},
+    {"from": "2026-03-01", "verified": True,
+     "set": {"EXCHANGE_TXN.NSE": {"delivery": 0.0000307, "mtf": 0.0000307, "intraday": 0.0000307,
+                                  "futures": 0.0000183, "options": 0.0003553}},
+     "note": "NSE transaction-charge revision effective 1 Mar 2026."},
+    {"from": "2026-04-01", "verified": True,
+     "set": {"STT.futures.sell": 0.0005, "STT.options.sell": 0.0015},
+     "note": "Finance Act 2026: STT on futures 0.05%, options 0.15% of premium."},
+]
+
+
+def _build_eras() -> list:
+    """[(start date, full rate dict, {component: approximation note})], oldest first."""
+    import copy
+    from datetime import date as _d
+    cur, approx = copy.deepcopy(_BASELINE), dict(_BASELINE_APPROX)
+    eras = [(_d.fromisoformat(RATE_HISTORY_START), copy.deepcopy(cur), dict(approx))]
+    for e in RATE_HISTORY:
+        for path, val in e["set"].items():
+            keys = path.split(".")
+            node = cur
+            for k in keys[:-1]:
+                node = node[k]
+            node[keys[-1]] = copy.deepcopy(val)
+            for comp in [c for c in approx if c == path or path.startswith(c + ".") or c.startswith(path + ".")]:
+                del approx[comp]
+            if not e["verified"]:
+                approx[path] = e["note"]
+        eras.append((_d.fromisoformat(e["from"]), copy.deepcopy(cur), dict(approx)))
+    return eras
+
+
+_ERAS = _build_eras()
+
+
+def _as_date(on):
+    from datetime import date as _d, datetime as _dt
+    if isinstance(on, str):
+        return _d.fromisoformat(on)
+    return on.date() if isinstance(on, _dt) else on
+
+
+def _era_index(on) -> int:
+    k = 0
+    for i, (start, _, _) in enumerate(_ERAS):
+        if start <= on:
+            k = i
+    return k
+
+
+def _approx_notes(approx: dict, exchange: str | None) -> list:
+    other = {"NSE": "BSE", "BSE": "NSE"}.get((exchange or "").upper())
+    return [n for c, n in approx.items() if not (other and c == f"EXCHANGE_TXN.{other}")]
+
+
+def rates_on(on, exchange: str | None = None) -> dict:
+    """Statutory and exchange rates in force on `on` (date or YYYY-MM-DD), plus `notes` listing the
+    approximations in force. Dates before RATE_HISTORY_START use the first era and say so."""
+    on = _as_date(on)
+    start, rates, approx = _ERAS[_era_index(on)]
+    notes = _approx_notes(approx, exchange)
+    if on < _ERAS[0][0]:
+        notes.append(f"{on} is before the rate history starts ({RATE_HISTORY_START}); June 2013 rates are used.")
+    return dict(rates, era_from=start.isoformat(), notes=notes)
+
+
+def rate_notes_between(start, end, exchange: str | None = None) -> dict:
+    """Rate eras overlapping [start, end] and the approximations in force anywhere in it."""
+    start, end = _as_date(start), _as_date(end)
+    a, b = _era_index(start), _era_index(end)
+    notes: list = []
+    for k in range(a, b + 1):
+        for n in _approx_notes(_ERAS[k][2], exchange):
+            if n not in notes:
+                notes.append(n)
+    if start < _ERAS[0][0]:
+        notes.append(f"Dates before {RATE_HISTORY_START} use June 2013 rates.")
+    changes = [_ERAS[k][0].isoformat() for k in range(a + 1, b + 1)]
+    return {"eras": b - a + 1, "changes_on": changes, "approximations": notes}
+
+
+# ---------------------------------------------------------------------------
 # Broker pricing (per executed order). Verified from official pricing pages.
 #   pct  : fraction of order value     cap: max ₹ per order     min: min ₹ per order
 #   flat : flat ₹ per order (overrides pct)
@@ -169,8 +305,11 @@ def order_brokerage(profile: dict, order_value: float, segment: str) -> float:
 
 def calculate(segment: str, buy: float, sell: float, qty: float, broker: str = "zerodha",
               exchange: str = "NSE", orders_per_side: int = 1, brokerage_override: dict | None = None,
-              mtf_days: int = 0, mtf_funded: float = 0.0, dp_scrips: int = 1) -> dict:
+              mtf_days: int = 0, mtf_funded: float = 0.0, dp_scrips: int = 1, on=None) -> dict:
     """Compute every charge for a round trip (one buy side + one sell side).
+
+    on: a date (or YYYY-MM-DD) to use the statutory and exchange rates in force that day
+    (RATE_HISTORY) instead of today's. Broker brokerage and DP charges are always today's.
 
     Pass buy=0 or sell=0 to price only one leg (e.g. an open position).
     For options, buy/sell are PREMIUMS per unit and qty is in units (lots x lot size).
@@ -185,6 +324,13 @@ def calculate(segment: str, buy: float, sell: float, qty: float, broker: str = "
     bk = BROKERS.get(broker, {"name": "Custom", "dp": 0.0, "mtf_daily_rate": 0.0})
     profile = brokerage_override or bk.get(segment, {"pct": 0.0})
 
+    if on is None:
+        stt_r, exch_r, sebi_r, stamp_r, gst_r, basis = STT, EXCHANGE_TXN, SEBI_FEE, STAMP, GST, RATES_AS_OF
+    else:
+        rt = rates_on(on, exchange)
+        stt_r, exch_r, sebi_r, stamp_r, gst_r = rt["STT"], rt["EXCHANGE_TXN"], rt["SEBI_FEE"], rt["STAMP"], rt["GST"]
+        basis = f"rates in force on {_as_date(on).isoformat()} (era from {rt['era_from']})"
+
     buy_value = buy * qty
     sell_value = sell * qty
     turnover = buy_value + sell_value
@@ -195,19 +341,19 @@ def calculate(segment: str, buy: float, sell: float, qty: float, broker: str = "
         if side_value > 0:
             brokerage += n * order_brokerage(profile, side_value / n, segment)
 
-    stt = buy_value * STT[segment]["buy"] + sell_value * STT[segment]["sell"]
-    exch = turnover * EXCHANGE_TXN[exchange][segment]
-    sebi = turnover * SEBI_FEE
+    stt = buy_value * stt_r[segment]["buy"] + sell_value * stt_r[segment]["sell"]
+    exch = turnover * exch_r[exchange][segment]
+    sebi = turnover * sebi_r
     ipft = turnover * IPFT_NSE if exchange == "NSE" else 0.0
-    stamp = buy_value * STAMP[segment]
-    gst = GST * (brokerage + exch + sebi + ipft)
+    stamp = buy_value * stamp_r[segment]
+    gst = gst_r * (brokerage + exch + sebi + ipft)
 
     dp = 0.0
     if segment in ("delivery", "mtf") and sell_value > 0:
         dp_base = bk.get("dp", 0.0)
         if broker == "groww" and sell_value < 100:
             dp_base = 0.0
-        dp = dp_base * (1 + GST) * max(1, dp_scrips)
+        dp = dp_base * (1 + gst_r) * max(1, dp_scrips)
 
     mtf_interest = 0.0
     if segment == "mtf" and mtf_days > 0 and mtf_funded > 0:
@@ -226,7 +372,7 @@ def calculate(segment: str, buy: float, sell: float, qty: float, broker: str = "
         "gross_pnl": gross, "net_pnl": net,
         "charges_pct_of_turnover": (total / turnover * 100) if turnover else 0.0,
         "charges_pct_of_gross": (total / abs(gross) * 100) if gross else None,
-        "rates_as_of": RATES_AS_OF,
+        "rates_as_of": RATES_AS_OF, "rates_basis": basis, "gst_rate": gst_r,
     }
 
 
@@ -283,12 +429,15 @@ ROWS = [("Brokerage", "brokerage"), ("STT", "stt"), ("Exchange txn", "exchange_t
 
 
 def print_report(r: dict, be: float | None) -> None:
-    print(f"\n{r['broker']} | {r['segment'].upper()} | {r['exchange']}  (rates as of {r['rates_as_of']})")
+    when = r["rates_basis"] if r.get("rates_basis", "").startswith("rates in force") else f"rates as of {r['rates_as_of']}"
+    print(f"\n{r['broker']} | {r['segment'].upper()} | {r['exchange']}  ({when})")
     unit = "premium" if r["segment"] == "options" else "price"
     print(f"Buy {unit} {inr(r['buy'])} x {r['qty']:g}  |  Sell {unit} {inr(r['sell'])} x {r['qty']:g}")
     print(f"Turnover: {inr(r['turnover'])}")
     print("-" * 46)
     for label, key in ROWS:
+        if key == "gst" and r.get("gst_rate") is not None:
+            label = f"{'GST' if r['gst_rate'] >= 0.18 else 'Service tax'} ({r['gst_rate'] * 100:g}%)"
         if abs(r[key]) >= 0.005 or key in ("brokerage", "stt", "gst"):
             print(f"{label:<16}{inr(r[key]):>30}")
     print("-" * 46)
@@ -303,6 +452,10 @@ def print_report(r: dict, be: float | None) -> None:
         pts = be - r["buy"]
         print(f"Breakeven sell {unit}: {inr(be)} ({pts:+.2f} pts, {pts / r['buy'] * 100:+.3f}%)")
     print("Note: STT and stamp duty are rounded to the nearest rupee on contract notes.")
+    if r.get("rates_basis", "").startswith("rates in force"):
+        print("Broker brokerage and DP charges are today's pricing; only statutory/exchange rates are dated.")
+        for n in rates_on(r["rates_basis"].split()[4], r["exchange"])["notes"]:
+            print(f"Approximation: {n}")
 
 
 def main(argv=None) -> int:
@@ -319,8 +472,17 @@ def main(argv=None) -> int:
     p.add_argument("--brokerage-flat", type=float, help="override: flat ₹ per order")
     p.add_argument("--mtf-days", type=int, default=0, help="MTF holding days (segment mtf)")
     p.add_argument("--mtf-funded", type=float, default=0.0, help="MTF amount funded by broker, ₹")
+    p.add_argument("--on", metavar="YYYY-MM-DD",
+                   help="use the statutory/exchange rates in force on this date (broker pricing stays current)")
     p.add_argument("--json", action="store_true", help="print JSON")
     a = p.parse_args(argv)
+    if a.on:
+        from datetime import date as _d
+        try:
+            _d.fromisoformat(a.on)
+        except ValueError:
+            print(f"error: --on must be YYYY-MM-DD, got {a.on!r}", file=sys.stderr)
+            return 2
 
     override = None
     if a.brokerage_flat is not None:
@@ -334,7 +496,7 @@ def main(argv=None) -> int:
     results = []
     for b in brokers:
         kw = dict(broker=b, exchange=a.exchange, orders_per_side=a.orders,
-                  brokerage_override=override, mtf_days=a.mtf_days, mtf_funded=a.mtf_funded)
+                  brokerage_override=override, mtf_days=a.mtf_days, mtf_funded=a.mtf_funded, on=a.on)
         try:
             r = calculate(a.segment, a.buy, a.sell, a.qty, **kw)
         except ValueError as e:
@@ -360,7 +522,7 @@ def main(argv=None) -> int:
         return 0
     # Comparison table
     print(f"\n{a.segment.upper()} on {a.exchange.upper()}: buy {a.buy:g} / sell {a.sell:g} x {a.qty:g}"
-          f"  (rates as of {RATES_AS_OF})")
+          f"  ({'statutory rates in force on ' + a.on if a.on else 'rates as of ' + RATES_AS_OF})")
     print(f"{'Broker':<16}{'Brokerage':>12}{'Total chg':>14}{'Net P&L':>16}{'Breakeven':>12}")
     for r, be in sorted(results, key=lambda t: t[0]["total_charges"]):
         print(f"{r['broker']:<16}{inr(r['brokerage']):>12}{inr(r['total_charges']):>14}"
