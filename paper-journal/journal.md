@@ -79,6 +79,8 @@ Realised: ₹0.00 (no trade closed yet) · Unrealised: −₹334.02 (Bajaj Finan
 ### 2026-11-23 Close
 
 > Run at 3:55 PM IST, earlier than the usual 4:35 PM, because the owner asked. The Yahoo prices may differ slightly from NSE's official close. The 4:35 PM run re-checks them.
+>
+> **4:35 PM check: confirmed.** NSE's official end-of-day file (bhavcopy) shows Bajaj Finance open ₹1,125.25, high ₹1,130.50, low ₹1,093.10 and close ₹1,095.50. These match the figures below exactly, so nothing changed.
 
 **What happened today, in plain words**
 - Bajaj Finance opened at ₹1,125.25, just below our ₹1,129.20 buy price.
