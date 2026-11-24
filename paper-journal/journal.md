@@ -153,3 +153,6 @@ If Bajaj Finance falls another 2% on Wednesday but stays above ₹1,068.60, woul
 
 ### 2026-11-24 Morning
 Market holiday (Guru Nanak Jayanti / Prakash Gurpurb): NSE and BSE are closed, so there are no ideas today. Bajaj Finance stays open with nothing changed. Holidays do not count towards the 20-day limit. Next trading day: Wed 25 Nov.
+
+### 2026-11-24 Close
+Market holiday (Guru Nanak Jayanti / Prakash Gurpurb). Positions unchanged: Bajaj Finance is still OPEN at day 1 of 20, last priced at ₹1,095.50 (Monday close). There is no lesson and no comparison today.
