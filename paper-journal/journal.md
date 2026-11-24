@@ -150,3 +150,6 @@ Realised: ₹0.00 (no trade closed yet) · Unrealised: −₹334.02 (Bajaj Finan
 
 **(4) Question for tonight**
 If Bajaj Finance falls another 2% on Wednesday but stays above ₹1,068.60, would you feel the urge to sell, and what would following the rule teach you either way?
+
+### 2026-11-24 Morning
+Market holiday (Guru Nanak Jayanti / Prakash Gurpurb): NSE and BSE are closed, so there are no ideas today. Bajaj Finance stays open with nothing changed. Holidays do not count towards the 20-day limit. Next trading day: Wed 25 Nov.
