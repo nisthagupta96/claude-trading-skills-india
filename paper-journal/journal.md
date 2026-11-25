@@ -19,13 +19,14 @@ Fixed rules:
 |---|---|---|---|---|---|---|---|---|
 | 2026-11-23 | BAJFINANCE | OPEN | 1,129.20 | 1,068.60 | 1,250.40 | 8 | 9,033.60 | 30.30 |
 
-*In words: we hold 8 pretend Bajaj Finance shares, bought at ₹1,129.20 on 23 Nov. This is day 1 of 20. We sell if the price closes at ₹1,068.60 or below, or at ₹1,250.40 or above.*
+*In words: we hold 8 pretend Bajaj Finance shares, bought at ₹1,129.20 on 23 Nov. After 25 Nov, this is day 2 of 20. We sell if the price closes at ₹1,068.60 or below, or at ₹1,250.40 or above.*
 
 ## Cumulative net P&L since start
-Realised: ₹0.00 (no trade closed yet) · Unrealised: −₹334.02 (Bajaj Finance, if sold at today's close, after charges)
+Realised: ₹0.00 (no trade closed yet) · Unrealised: −₹47.86 (Bajaj Finance, if sold at the 25 Nov close, after charges)
 
 ## Lessons covered
 - 2026-11-23: Stop-loss
+- 2026-11-25: Target
 
 ## Daily log
 
@@ -180,3 +181,64 @@ Market holiday (Guru Nanak Jayanti / Prakash Gurpurb). Positions unchanged: Baja
 *In words: sitting out is also a decision. With no clean setup and mixed signals, we buy nothing new today.*
 
 **Open trade:** Bajaj Finance, held since 23 Nov (day 2 of 20 today). Last price ₹1,095.50; stop ₹1,068.60; target ₹1,250.40.
+
+### 2026-11-25 Close
+
+**What happened today, in plain words**
+- The whole market bounced back. NIFTY rose 1.85% (25,350 → 25,819), recovering most of Monday's fall.
+- Bajaj Finance opened at ₹1,119.90, a jump of 2.2% above Monday's close. It went as high as ₹1,148, then closed at ₹1,131.35, up 3.3% on the day.
+- That is ₹2.15 above what we paid. But after charges, selling now would still lose a little, because we need ₹1,137.35 just to cover costs.
+- No new idea was planned this morning, so there was no new buy.
+
+| Stock | Status | Day | Qty | Entry | Invested ₹ | Current price | Current value ₹ | Gross P&L ₹ | Gross P&L % | Charges ₹ | Net P&L ₹ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| BAJFINANCE | OPEN | 2 of 20 | 8 | 1,129.20 | 9,033.60 | 1,131.35 | 9,050.80 | +17.20 | +0.19% | 65.06 | −47.86 |
+
+*In words: our pretend shares are worth ₹17 more than we paid. Selling costs about ₹65, so if we sold now we would be ₹48 down overall. We hold: the stop (₹1,068.60) and the target (₹1,250.40) were both far away today.*
+
+- End-of-day net P&L (all stocks): **−₹47.86**, unrealised (better by ₹286 than Monday's −₹334.02)
+- Cumulative net P&L since start (2026-11-23): **₹0.00 realised**; −₹47.86 unrealised
+- Free slots for tomorrow: **2 of 3**
+- For comparison: a NIFTY index fund (NIFTYBEES) rose 1.6% today.
+- Data note: NSE's official end-of-day file was not out yet at 4:35 PM (error 404), so these are Yahoo prices.
+
+#### Prediction vs reality
+
+**The story:** no new idea today. Our one open trade, Bajaj Finance, recovered with the market. It is back above our buy price before charges, and still well between the stop and the target.
+
+| | Predicted | Actual so far (day 2) | Gap |
+|---|---|---|---|
+| Stop ₹1,068.60 / target ₹1,250.40 | One of them to be hit within 20 days | Neither touched today (low ₹1,112.30, high ₹1,148.00) | — |
+| Close | — | ₹1,131.35 (+0.19% vs the buy price) | — |
+| Net result | −₹548.74 at stop / +₹902.43 at target | −₹47.86 if sold now (not final) | vs ₹0: −₹47.86 (−0.5%) |
+
+**Cause: (a) normal market noise.** The stock moved with the market: NIFTY +1.85%, Bajaj Finance +3.3%. The rules were followed. Nothing is final while the trade is open.
+
+**Repeat-cause check:** data issues 0, cost issues 0, rule/skill errors 0 (threshold: 5 trades or 4 weeks). **No change needed, this is expected variation.**
+
+#### Today's lesson in plain words
+
+**(1) How to read today's table**
+- *Status OPEN*: we still hold the shares.
+- *Day 2 of 20*: the second trading day since buying. The holiday doesn't count.
+- *Current price / value*: today's closing price, and what our 8 shares are worth at it.
+- *Gross P&L*: the gain before costs: +₹17.20, or +0.19%.
+- *Charges*: the cost of buying and selling: ₹65.06.
+- *Net P&L*: what is left after costs: −₹47.86.
+
+**How did today go?** Well. The market recovered and our loss on paper shrank from ₹334 to ₹48. It shows how much a single stock can swing in two days, much more than a fund's NAV usually does.
+
+**(2) What could we have done better today?**
+- **Nothing to change.** On Monday, at −₹334, it was tempting to sell. Holding was the rule, and today shows why: normal swings go both ways. One good day doesn't prove the rule is right either, but it shows why we decide exits in advance and not on feelings.
+- **Something to notice:** the price is ₹2 above our buy price, yet we are still at a loss. That's the charges. A trade has to rise about 0.7% (to ₹1,137.35) just to break even.
+
+**(3) Today's metric lesson: Target**
+- *What it is:* a price, decided before buying, at which we sell to take the profit. Ours is ₹1,250.40.
+- *How ours is set:* it is 2 × the risk above the buy price. The risk is the distance to the stop: ₹1,129.20 − ₹1,068.60 = ₹60.60 per share. So the target is ₹1,129.20 + 2 × ₹60.60 = ₹1,250.40.
+- *Why it matters:* without a target, people often sell winners too early (out of fear of losing the gain) or hold too long (hoping for more). A fixed target makes the plan automatic. It also lets us measure how often the plan works.
+- *Mutual-fund comparison:* it's like deciding "I'll redeem when this fund is up 10%" instead of checking the NAV every day and deciding by mood.
+- *How to read it:* at today's close (₹1,131.35), the target is ₹119.05 away (+10.5%), and the stop is ₹62.75 away (−5.5%). So the stock needs to rise about twice as far to hit the target as it would need to fall to hit the stop. That's by design: we accept that we will be right less often, but win twice as much when we are.
+- *The honest part:* past data said only about 1 in 6 trades like this reached the target within 20 days. The target is a plan, not a promise.
+
+**(4) Question for tonight**
+If Bajaj Finance rises to ₹1,200 but then starts falling, would you be tempted to sell before the target? What would the rule say?
