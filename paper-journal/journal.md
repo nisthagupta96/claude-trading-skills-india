@@ -156,3 +156,27 @@ Market holiday (Guru Nanak Jayanti / Prakash Gurpurb): NSE and BSE are closed, s
 
 ### 2026-11-24 Close
 Market holiday (Guru Nanak Jayanti / Prakash Gurpurb). Positions unchanged: Bajaj Finance is still OPEN at day 1 of 20, last priced at ₹1,095.50 (Monday close). There is no lesson and no comparison today.
+
+### 2026-11-25 Morning
+
+**Market view** (data to Mon 23 Nov close; Tuesday was a holiday)
+- **Trend: still "confirmed uptrend"** (the trend tool's label for "a normal time to buy"). The risk score rose from 3 to 8 out of 100.
+  - NIFTY closed Monday at 25,350, 3.9% below its yearly high. That is a small pullback (a short dip within an uptrend).
+  - Monday's 1.75% fall came on lower volume than Friday, so the tool did not count it as a heavy-selling day. There have been 0 such days in 5 weeks.
+- **India VIX** (the "fear gauge") is 17.7: normal, but rising.
+- **GIFT Nifty for this morning was not found.** On Monday, reports mentioned a sell-off in US technology shares.
+- **FII/DII** (foreign / Indian big investors) on Mon 23 Nov:
+  - FIIs bought ₹5,673 crore net, and DIIs sold ₹2,760 crore net (NSE provisional figures, via Finostat, Tapetide and NiftyTrader).
+  - **Big change in futures:** only **20.1%** of FIIs' index futures bets are now on a rise, down from 34.1% on Friday. That is at the "extreme caution" level. They are buying shares in cash but have cut their futures bets on a rise sharply. That is a mixed signal.
+- **This week:** Thu 26 Nov: BSE monthly expiry (SENSEX). No RBI or big data releases. No NIFTY 50 results due.
+- **Favour breakouts? Mixed.** The trend is still up. But the market fell on Monday, the fear gauge is rising, and foreign investors are very cautious in futures.
+
+**Ideas: no good setup today.** We already hold Bajaj Finance, so 2 places are free, but nothing qualifies:
+- Apollo Hospitals is 6.5% above its breakout price, and Axis Bank is 7.3% above its own. Both are too late to buy safely.
+- Cipla, M&M and Shriram Finance are near their breakout prices but fail most trend checks (2 or fewer out of 6).
+- ICICI Bank is strong but has no resting pattern yet.
+- Bajaj-Auto is above ₹10,000 per share.
+
+*In words: sitting out is also a decision. With no clean setup and mixed signals, we buy nothing new today.*
+
+**Open trade:** Bajaj Finance, held since 23 Nov (day 2 of 20 today). Last price ₹1,095.50; stop ₹1,068.60; target ₹1,250.40.
