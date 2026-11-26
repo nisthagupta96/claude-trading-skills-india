@@ -19,14 +19,15 @@ Fixed rules:
 |---|---|---|---|---|---|---|---|---|
 | 2026-11-23 | BAJFINANCE | OPEN | 1,129.20 | 1,068.60 | 1,250.40 | 8 | 9,033.60 | 30.30 |
 
-*In words: we hold 8 pretend Bajaj Finance shares, bought at ₹1,129.20 on 23 Nov. After 25 Nov, this is day 2 of 20. We sell if the price closes at ₹1,068.60 or below, or at ₹1,250.40 or above.*
+*In words: we hold 8 pretend Bajaj Finance shares, bought at ₹1,129.20 on 23 Nov. After 26 Nov, this is day 3 of 20. We sell if the price closes at ₹1,068.60 or below, or at ₹1,250.40 or above.*
 
 ## Cumulative net P&L since start
-Realised: ₹0.00 (no trade closed yet) · Unrealised: −₹47.86 (Bajaj Finance, if sold at the 25 Nov close, after charges)
+Realised: ₹0.00 (no trade closed yet) · Unrealised: −₹315.26 (Bajaj Finance, if sold at the 26 Nov close, after charges)
 
 ## Lessons covered
 - 2026-11-23: Stop-loss
 - 2026-11-25: Target
+- 2026-11-26: Risk-reward
 
 ## Daily log
 
@@ -265,3 +266,64 @@ If Bajaj Finance rises to ₹1,200 but then starts falling, would you be tempted
 **Data note:** Yahoo's long-history download showed yesterday's (25 Nov) prices as blank, so the tools first used Monday's prices. This was fixed by downloading 25 Nov directly. NSE's official file confirms Bajaj Finance's 25 Nov prices exactly (open ₹1,119.90, high ₹1,148.00, low ₹1,112.30, close ₹1,131.35).
 
 **Open trade:** Bajaj Finance, day 3 of 20 today. Last price ₹1,131.35; stop ₹1,068.60; target ₹1,250.40.
+
+### 2026-11-26 Close
+
+**What happened today, in plain words**
+- NIFTY rose a little (+0.25%, to 25,885), and the fear gauge (India VIX) fell to 16.8.
+- **Bajaj Finance went the other way.** It opened at ₹1,120.10, reached ₹1,125.35, then slid all day. It closed at ₹1,097.85, its lowest point of the day, down 3.0%.
+- No company news was found to explain it.
+- No new idea was planned this morning.
+- Prices are confirmed by NSE's official end-of-day file (bhavcopy): open ₹1,120.10, high ₹1,125.35, low ₹1,097.85, close ₹1,097.85.
+
+| Stock | Status | Day | Qty | Entry | Invested ₹ | Current price | Current value ₹ | Gross P&L ₹ | Gross P&L % | Charges ₹ | Net P&L ₹ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| BAJFINANCE | OPEN | 3 of 20 | 8 | 1,129.20 | 9,033.60 | 1,097.85 | 8,782.80 | −250.80 | −2.78% | 64.46 | −315.26 |
+
+*In words: our 8 pretend shares are worth ₹251 less than we paid. With ₹64 of selling costs, we'd be ₹315 down if we sold now. We hold: the price is still ₹29.25 (2.7%) above our sell-if-it-falls price of ₹1,068.60.*
+
+- End-of-day net P&L (all stocks): **−₹315.26**, unrealised (it was −₹47.86 yesterday)
+- Cumulative net P&L since start (2026-11-23): **₹0.00 realised**; −₹315.26 unrealised
+- Free slots for tomorrow: **2 of 3**
+- For comparison: a NIFTY index fund (NIFTYBEES) rose 0.43% today.
+
+#### Prediction vs reality
+
+**The story:** no new idea today. Bajaj Finance gave back Wednesday's gain and more, falling 3% on a day the market rose a little. It is now 2.7% above the stop and 13.9% below the target.
+
+| | Predicted | Actual so far (day 3) | Gap |
+|---|---|---|---|
+| Stop ₹1,068.60 / target ₹1,250.40 | One of them to be hit within 20 days | Neither touched (low ₹1,097.85, high ₹1,125.35) | — |
+| Close | — | ₹1,097.85 (−2.78% vs the buy price) | — |
+| Net result | −₹548.74 at stop / +₹902.43 at target | −₹315.26 if sold now (not final) | vs ₹0: −₹315.26 (−3.5%) |
+
+**Cause: (a) normal market noise.** A single stock can move against the market on a given day, here −3.0% vs NIFTY +0.25%. The rules were followed, no company news was found, and the price stayed above the stop. One day of weakness is not evidence that the setup failed.
+
+**Repeat-cause check:** data issues 0 in counted trades (this morning's Yahoo gap was caught and fixed before any decision, so no trade was affected), cost issues 0, rule/skill errors 0 (threshold: 5 trades or 4 weeks). **No change needed, this is expected variation.**
+
+#### Today's lesson in plain words
+
+**(1) How to read today's table**
+- *Day 3 of 20*: the third trading day since buying.
+- *Current price / value*: today's close, ₹1,097.85, and what our 8 shares are worth at it.
+- *Gross P&L*: −₹250.80 (−2.78%) before costs.
+- *Charges*: ₹64.46 to buy and sell.
+- *Net P&L*: −₹315.26 if we sold today.
+
+**How did today go?** Badly for our stock, on a day the market was fine. In three trading days, this trade has swung from −₹334 to −₹48 to −₹315 on paper. A single stock is much bumpier than a fund, which spreads money across 50 or more companies.
+
+**(2) What could we have done better today?**
+- **Nothing to change in the plan.** It's tempting to sell after a 3% drop "before it gets worse". But the stop (₹1,068.60) is the decision we made in advance, while calm. Selling early just turns a possible recovery into a sure loss.
+- **Something to watch:** the stock rose with the market on Wednesday but fell alone today. If it keeps lagging the market, that is useful information for later reviews, but one day doesn't prove anything.
+
+**(3) Today's metric lesson: Risk-reward**
+- *What it is:* how much you could gain if you're right, compared with how much you could lose if you're wrong.
+- *Our numbers:* we risk ₹60.60 per share (buy price to stop) to try to gain ₹121.20 per share (buy price to target). That's 2 to 1 before charges.
+  - For 8 shares after charges, it's −₹548.74 against +₹902.43, which is **1.64 to 1**. Charges always shrink it.
+- *Why it matters:* with 2-to-1, you can be wrong more often than right and still come out ahead. If you win 1 trade in 3, you lose ₹1 twice and win ₹2 once, so you break even before charges. If you win 2 in 5, you make a profit.
+- *Mutual-fund comparison:* fund investors rarely think this way, because a diversified fund's downside is spread out. For a single stock, deciding "how much can I lose, and how much can I make" before buying is the core of the plan.
+- *Reading it today:* from today's price, the picture has shifted. The stop is only ₹29.25 below, while the target is ₹152.55 above. That's about 5.2 to 1 from here. It does **not** mean the trade got better: the stock has simply moved closer to the stop. Risk-reward is set when you buy, not re-judged every day.
+- *The catch:* risk-reward only tells half the story. You also need to know how often you win. Our backtest said this kind of trade reaches the target only about 1 time in 6, which is below the 1 in 3 needed to break even at 2-to-1. The next lesson (win rate) covers that.
+
+**(4) Question for tonight**
+Would you rather have a plan that wins 1 time in 3 but makes ₹2 for every ₹1 lost, or one that wins 2 times in 3 but makes only ₹0.50 for every ₹1 lost? Work out which one makes money over 6 trades.
