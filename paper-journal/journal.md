@@ -242,3 +242,26 @@ Market holiday (Guru Nanak Jayanti / Prakash Gurpurb). Positions unchanged: Baja
 
 **(4) Question for tonight**
 If Bajaj Finance rises to ₹1,200 but then starts falling, would you be tempted to sell before the target? What would the rule say?
+
+### 2026-11-26 Morning
+
+**Market view** (data to Wed 25 Nov close)
+- **Trend: "confirmed uptrend"** (a normal time to buy). The risk score is 13 out of 100, up from 8, mainly because the fear gauge is higher.
+  - NIFTY bounced 1.85% to 25,819, now just 2.1% below its yearly high. There have been 0 heavy-selling days in 5 weeks.
+- **India VIX** (the fear gauge) is 17.7: normal, unchanged.
+- **GIFT Nifty for this morning was not found.**
+- **FII/DII** on Wed 25 Nov: **both** foreign investors (FIIs, +₹4,479 crore) and Indian institutions (DIIs, such as mutual funds, +₹4,019 crore) were net buyers of shares (provisional figures, via Alphave, NiftyTrader and Trendlyne).
+  - In futures, FIIs' share of bets on a rise recovered a little, from 20.1% to 23.8%. That is still very cautious.
+- **This week:** today, Thu 26 Nov, is the BSE monthly expiry (SENSEX contracts end, so expect some swings near 3:30 PM). No RBI or big data releases. No NIFTY 50 results due.
+- **Favour breakouts? Mostly yes.** The trend is up, NIFTY is near its high, and both investor groups were buying. Foreign futures bets are still cautious.
+
+**Ideas: no good setup today.** We hold Bajaj Finance, so 2 places are free.
+- **Trent** passes all 6 trend checks, but it is already 10.5% above its breakout price. **Apollo Hospitals** is 6.9% above. Both are too late to buy safely.
+- **Tata Consumer and Hindustan Unilever** jumped 4.7% and 6.1% yesterday on heavy volume, but both fail 4 of 6 trend checks (their longer trends are still down) and are already above their breakout price.
+- **Bajaj-Auto** (above ₹10,000 per share), **Axis Bank, HDFC Bank, L&T, Max Healthcare, Sun Pharma** and others are below their breakout price, but they pass only 3–4 trend checks, so the tool says skip.
+
+*In words: the stocks that look strong already ran up, and the ones still waiting don't have a strong enough trend. We wait.*
+
+**Data note:** Yahoo's long-history download showed yesterday's (25 Nov) prices as blank, so the tools first used Monday's prices. This was fixed by downloading 25 Nov directly. NSE's official file confirms Bajaj Finance's 25 Nov prices exactly (open ₹1,119.90, high ₹1,148.00, low ₹1,112.30, close ₹1,131.35).
+
+**Open trade:** Bajaj Finance, day 3 of 20 today. Last price ₹1,131.35; stop ₹1,068.60; target ₹1,250.40.
