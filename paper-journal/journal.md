@@ -18,17 +18,18 @@ Fixed rules:
 | Date | Stock | Status | Entry | Stop | Target | Qty | Invested ₹ | ATR |
 |---|---|---|---|---|---|---|---|---|
 | 2026-11-23 | BAJFINANCE | OPEN | 1,129.20 | 1,068.60 | 1,250.40 | 8 | 9,033.60 | 30.30 |
-| 2026-11-27 | TRENT | PLANNED | 3,356.60 | 3,187.00 | 3,695.80 | 2 | 6,713.20 | 84.80 |
+| 2026-11-27 | TRENT | NOT TRIGGERED | 3,356.60 | 3,187.00 | 3,695.80 | 2 | 6,713.20 | 84.80 |
 
-*In words: we hold 8 pretend Bajaj Finance shares, bought at ₹1,129.20 on 23 Nov. After 26 Nov, this is day 3 of 20. We sell if the price closes at ₹1,068.60 or below, or at ₹1,250.40 or above.*
+*In words: we hold 8 pretend Bajaj Finance shares, bought at ₹1,129.20 on 23 Nov. After 27 Nov, this is day 4 of 20. We sell if the price closes at ₹1,068.60 or below, or at ₹1,250.40 or above.*
 
 ## Cumulative net P&L since start
-Realised: ₹0.00 (no trade closed yet) · Unrealised: −₹315.26 (Bajaj Finance, if sold at the 26 Nov close, after charges)
+Realised: ₹0.00 (no trade closed yet) · Unrealised: −₹457.74 (Bajaj Finance, if sold at the 27 Nov close, after charges)
 
 ## Lessons covered
 - 2026-11-23: Stop-loss
 - 2026-11-25: Target
 - 2026-11-26: Risk-reward
+- 2026-11-27: Win rate
 
 ## Daily log
 
@@ -390,3 +391,69 @@ Would you rather have a plan that wins 1 time in 3 but makes ₹2 for every ₹1
 **Data note:** Yahoo was missing Thursday's prices for 50 of the 50 NIFTY stocks. They were filled from NSE's official end-of-day files (bhavcopy) for 25 and 26 Nov before running the scans. The indices (NIFTY, VIX) came from Yahoo complete.
 
 **Open trade:** Bajaj Finance, day 4 of 20 today. Last price ₹1,097.85; stop ₹1,068.60; target ₹1,250.40.
+
+### 2026-11-27 Close
+
+**What happened today, in plain words**
+- The market fell. NIFTY was down 1.07% (25,885 → 25,607).
+- **Trent** needed to rise to ₹3,356.60 for our pretend buy. It reached at most ₹3,300.00, ₹56.60 (1.7%) short, so **we did not buy and nothing was spent**. It closed at ₹3,273.
+- **Bajaj Finance** fell another 1.6%, to ₹1,080.00. Its lowest price today was ₹1,079.00, just ₹10.40 above our sell-if-it-falls price of ₹1,068.60. It closed ₹11.40 (1.1%) above it, so we still hold.
+- NSE's official end-of-day file (bhavcopy) confirms both stocks' prices.
+
+| Stock | Status | Day | Qty | Entry | Invested ₹ | Current price | Current value ₹ | Gross P&L ₹ | Gross P&L % | Charges ₹ | Net P&L ₹ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| BAJFINANCE | OPEN | 4 of 20 | 8 | 1,129.20 | 9,033.60 | 1,080.00 | 8,640.00 | −393.60 | −4.36% | 64.14 | −457.74 |
+| TRENT | NOT TRIGGERED | — | 0 | (3,356.60) | 0.00 | 3,273.00 | 0.00 | 0.00 | 0.00% | 0.00 | 0.00 |
+
+*In words: Bajaj Finance is worth ₹394 less than we paid. With ₹64 of selling costs, it would be ₹458 down if sold today. Trent never reached our buy price, so it cost nothing.*
+
+- End-of-day net P&L (all stocks): **−₹457.74**, unrealised
+- Cumulative net P&L since start (2026-11-23): **₹0.00 realised**; −₹457.74 unrealised
+- Free slots for Monday: **2 of 3** (Trent's plan expires)
+- For comparison: a NIFTY index fund (NIFTYBEES) fell 1.13% today.
+
+#### Prediction vs reality
+
+**The stories:**
+- *Trent:* we planned to buy only if it rose to ₹3,356.60. It rose to ₹3,300 and then drifted back on a weak market day, so no buy happened. That is the rule working.
+- *Bajaj Finance:* it fell with the market for the second day running. It is now very close to its stop. If it closes at ₹1,068.60 or lower on any day, it will be sold at that day's close.
+
+| Stock | Predicted | Actual | Gap |
+|---|---|---|---|
+| TRENT | Buy at ₹3,356.60; stop ₹3,187; target ₹3,695.80; −₹392.83 / +₹622.52 | Not filled: high ₹3,300.00, low ₹3,262.60, close ₹3,273.00 | Missed the buy price by ₹56.60 (1.7%); outcome ₹0 |
+| BAJFINANCE (open) | −₹548.74 at stop / +₹902.43 at target | −₹457.74 if sold now, day 4 (not final); low ₹1,079.00 | vs ₹0: −₹457.74 (−5.1%) |
+
+**Causes:**
+- **Trent: (a) normal market noise.** The rule ("buy only on a breakout") was followed. NIFTY fell 1.07%, and the stock didn't reach its breakout price. No news was found. Not an error.
+- **Bajaj Finance: (a) normal market noise.** It fell 1.6% on a day NIFTY fell 1.1%. No company news was found, and the rules were followed. Being close to the stop is not an error, it is one of the expected outcomes.
+
+**Repeat-cause check:** data issues 0 in counted trades (Yahoo's missing prices were filled from NSE before any decision), cost issues 0, rule/skill errors 0 (threshold: 5 trades or 4 weeks). **No change needed, this is expected variation.**
+
+#### Today's lesson in plain words
+
+**(1) How to read today's table**
+- *Status NOT TRIGGERED* (Trent): our buy price was never reached, so there was no trade and no money spent. This is good, not bad.
+- *Status OPEN, day 4 of 20* (Bajaj Finance): still held; 16 trading days left at most.
+- *Current price / value*: today's close and what our shares are worth at it.
+- *Gross P&L*: the gain or loss before costs.
+- *Charges*: the cost of buying and selling.
+- *Net P&L*: what's left after costs.
+
+**How did today go?** Badly for the open trade. Bajaj Finance is down 4.4% from our buy price and is close to its stop. The Trent rule protected us: on a falling day, the buy simply didn't happen.
+
+**(2) What could we have done better today?**
+- **Honest point 1:** Bajaj Finance has now fallen on 3 of its 4 days, and twice on days the whole market fell. Our only way out is the stop, which is how the plan is designed. The thing to resist is selling early "to save a bit" or, worse, moving the stop lower "to give it room". Moving a stop after buying is one of the most common beginner mistakes.
+- **Honest point 2:** the morning checklist showed a weaker rupee and a slightly negative GIFT Nifty, and the market did fall. The checklist is context, not a rule. One day doesn't prove it predicts anything, but it's worth tracking over the month.
+
+**(3) Today's metric lesson: Win rate**
+- *What it is:* the share of trades that make money. Win 4 trades out of 10 and your win rate is 40%.
+- *Mutual-fund comparison:* it's like asking "in how many months did my fund go up?" A fund might rise in 60% of months and still do well, because what matters is how big the up-months are compared with the down-months.
+- *Why it matters:* win rate means nothing alone. It has to be read together with risk-reward (yesterday's lesson).
+  - With our 2-to-1 setup, you break even at about **1 win in 3 (33%)** before charges.
+  - After charges, our setup is about 1.6-to-1, so the break-even win rate rises to about **38%**.
+- *How to read it:* the backtest said trades like ours reach the target only about **16%** of the time within 20 days. Some trades end at the time limit with small gains or losses instead, so not every non-win is a full loss. But 16% is well below the 38% needed. **This is the most important number we have so far:** on past data, this exact method lost money on average.
+- *Our real record so far:* 0 closed trades, so there is no win rate yet. We need about 30 closed trades before our own win rate means much. That is why we keep logging every trade.
+- *Today's example:* Trent didn't trigger. Not-triggered ideas don't count toward the win rate, because no money was risked.
+
+**(4) Question for tonight**
+If Bajaj Finance hits its stop next week and you lose about ₹549, would that mean the plan failed, or just that this trade was one of the expected losses? How would you tell the difference?
