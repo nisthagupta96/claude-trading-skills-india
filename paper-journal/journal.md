@@ -18,6 +18,7 @@ Fixed rules:
 | Date | Stock | Status | Entry | Stop | Target | Qty | Invested ₹ | ATR |
 |---|---|---|---|---|---|---|---|---|
 | 2026-11-23 | BAJFINANCE | OPEN | 1,129.20 | 1,068.60 | 1,250.40 | 8 | 9,033.60 | 30.30 |
+| 2026-11-27 | TRENT | PLANNED | 3,356.60 | 3,187.00 | 3,695.80 | 2 | 6,713.20 | 84.80 |
 
 *In words: we hold 8 pretend Bajaj Finance shares, bought at ₹1,129.20 on 23 Nov. After 26 Nov, this is day 3 of 20. We sell if the price closes at ₹1,068.60 or below, or at ₹1,250.40 or above.*
 
@@ -327,3 +328,51 @@ If Bajaj Finance rises to ₹1,200 but then starts falling, would you be tempted
 
 **(4) Question for tonight**
 Would you rather have a plan that wins 1 time in 3 but makes ₹2 for every ₹1 lost, or one that wins 2 times in 3 but makes only ₹0.50 for every ₹1 lost? Work out which one makes money over 6 trades.
+
+### 2026-11-27 Morning
+
+**Market view** (data to Thu 26 Nov close)
+- **Trend: "confirmed uptrend"** (a normal time to buy). The risk score fell back to 8 out of 100.
+  - NIFTY closed at 25,885, just 1.9% below its yearly high. There have been 0 heavy-selling days in 5 weeks.
+- **India VIX** (the fear gauge) fell to 16.8, which is calmer.
+- **GIFT Nifty for this morning was not checked/found.**
+- **FII/DII** on Thu 26 Nov: both foreign investors (FIIs, +₹5,843 crore) and Indian institutions (DIIs, +₹5,631 crore) were net buyers (provisional figures, via NiftyTrader and Groww). In futures, FIIs are still cautious: only 23.0% of their index bets are on a rise.
+- **Next week:**
+  - Mon 30 Nov: India GDP numbers (how fast the economy grew) at 4 PM.
+  - Tue 1 Dec: MSCI index changes take effect (big global funds rebalance, so some stocks see heavy trading at the 30 Nov close), plus GST collections and car sales.
+  - No NIFTY 50 results due.
+- **Favour breakouts? Yes.** The trend is up, NIFTY is near its high, the fear gauge is falling, and both investor groups are buying.
+
+**Ideas** (2 places free; we hold Bajaj Finance)
+
+| Stock | Suggestion | Reason | Entry (buy only if price rises to it) | Stop | Target | Risk-reward before / after charges | P(target) | Likely to hit target? |
+|---|---|---|---|---|---|---|---|---|
+| TRENT | **Buy (paper only)** | Rested for about 20 weeks under ₹3,350 after a 25% fall. Its trend has turned up: 5 of 6 trend checks pass, and it has beaten NIFTY over 3 and 6 months. But it is still 26% below its yearly high, and volume rose in the last dip (a sign of sellers). | ₹3,356.60 (skip if it opens above ₹3,457.30) | ₹3,187.00 | ₹3,695.80 | 2.0 : 1 / 1.58 : 1 | 16% (all NIFTY 50); 9% (this stock) | **No** |
+
+*In words: we buy 2 Trent shares only if the price rises to ₹3,356.60, about 2.9% above Thursday's close of ₹3,262.60.*
+- Then we sell at ₹3,187.00 if it falls, or at ₹3,695.80 if it rises.
+- If it opens above ₹3,457.30 (more than 3% higher), we don't buy.
+- Its next results are due 4 Feb 2027, so none this week.
+
+**₹10,000 simulation (Groww rates as of 2026-10-31)**
+
+| Qty | Invested | Charges (round trip) | Charges % | Net loss if stop hit | Net gain if target hit |
+|---|---|---|---|---|---|
+| 2 | ₹6,713.20 | ₹53.63 (stop) / ₹55.88 (target) | 0.80% (no warning) | −₹392.83 | +₹622.52 |
+
+*In words: only 2 whole shares fit in ₹10,000, so we use about ₹6,713. We risk about ₹393 to try to make about ₹623.*
+
+**How P(target) was worked out:** backtest-lab with the same rules (break of a 20-day high, stop 2×ATR, target 2R, max 20 days, ₹10,000 per trade, Groww charges), using data up to 26 Nov only.
+- **All NIFTY 50 stocks:** the target was hit first in 86 of 531 trades (16%), and the average result was −₹118 per trade after charges.
+- **Trent alone:** 1 of 11 (9%).
+- breakout-planner rated it "watch". This is a low-odds idea, logged to learn from.
+
+**Skipped:**
+- HCL Tech (+6.4% yesterday) and Infosys: their longer trends are down.
+- BSE is right at its breakout price, but passes only 4 of 6 checks.
+- Bajaj-Auto, Eicher and Maruti: weak trend checks, and Bajaj-Auto and Maruti are above ₹10,000.
+- ICICI Bank: no resting pattern yet.
+
+**Data note:** Yahoo was missing Thursday's prices for 50 of the 50 NIFTY stocks. They were filled from NSE's official end-of-day files (bhavcopy) for 25 and 26 Nov before running the scans. The indices (NIFTY, VIX) came from Yahoo complete.
+
+**Open trade:** Bajaj Finance, day 4 of 20 today. Last price ₹1,097.85; stop ₹1,068.60; target ₹1,250.40.
