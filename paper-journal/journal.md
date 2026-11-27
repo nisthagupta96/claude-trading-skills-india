@@ -335,7 +335,21 @@ Would you rather have a plan that wins 1 time in 3 but makes ₹2 for every ₹1
 - **Trend: "confirmed uptrend"** (a normal time to buy). The risk score fell back to 8 out of 100.
   - NIFTY closed at 25,885, just 1.9% below its yearly high. There have been 0 heavy-selling days in 5 weeks.
 - **India VIX** (the fear gauge) fell to 16.8, which is calmer.
-- **GIFT Nifty for this morning was not checked/found.**
+- **GIFT Nifty was not checked in the original 7:38 AM run (a miss). Added later the same morning:**
+
+| Signal | Level | Change | What it means for today |
+|---|---|---|---|
+| GIFT Nifty (about 8 AM) | 25,961 | −71 pts (about −0.3%) | A flat to slightly lower open |
+| S&P 500 / Nasdaq / Dow (US) | 7,183 / 23,586 / 50,183 | −0.25% / −0.62% / +0.33% | Wed 25 Nov figures; US markets were shut Thu 26 Nov for Thanksgiving. US tech slightly weak |
+| Nikkei / Hang Seng / Kospi (Asia) | 58,637 / 22,737 / 4,908 | +2.0% / +2.3% / +4.2% | Asia strongly up this morning |
+| USD/INR | ₹92.93 per $ | rupee −0.75% | A weaker rupee; worth watching |
+| US 10-yr yield | 4.85% | slightly lower | Neutral |
+| Brent crude | $92.6 | −2.1% | Cheaper oil is good for India |
+| Gold | $3,668 | +3.7% | A big jump; some investors are seeking safety |
+| India VIX | 16.8 | down | Calmer |
+| News: Bajaj Finance, Trent | — | — | Nothing company-specific found |
+
+*In words: Asia is strong and oil is cheaper, but US tech was a little weak, the rupee is softer and gold jumped. GIFT Nifty points to a quiet, flat start. That doesn't threaten Trent's buy: Trent would need to open more than 6% above Thursday's close for the "skip if it opens >3% above the buy price" rule to apply.*
 - **FII/DII** on Thu 26 Nov: both foreign investors (FIIs, +₹5,843 crore) and Indian institutions (DIIs, +₹5,631 crore) were net buyers (provisional figures, via NiftyTrader and Groww). In futures, FIIs are still cautious: only 23.0% of their index bets are on a rise.
 - **Next week:**
   - Mon 30 Nov: India GDP numbers (how fast the economy grew) at 4 PM.
