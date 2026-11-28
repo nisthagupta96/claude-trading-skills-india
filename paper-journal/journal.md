@@ -5,7 +5,17 @@
 
 Starting date: 2026-11-23
 
-Fixed rules:
+**Rules A (from Mon 30 Nov 2026, approved 28 Nov):**
+- ₹10,000 per stock.
+- Stop = entry − 3×ATR.
+- Target = 3× the risk.
+- Max 60 trading days per trade.
+- New buys only when NIFTY is above its 200-day average.
+- Max 3 stocks at once.
+- Skip if it opens more than 3% above the buy price.
+- See skill-change-proposals.md for why.
+
+Original rules (trades planned 23–27 Nov, e.g. Bajaj Finance):
 - ₹10,000 per stock.
 - Stop = entry − 2×ATR.
 - Target = 2× the risk.
@@ -512,3 +522,10 @@ Calibration means checking whether our forecasts come true as often as we said t
 - **Fri 4 Dec, 10 AM: RBI interest-rate decision.** This is the big one. Banks and finance companies like Bajaj Finance usually move sharply on it, and the rupee too.
 - **Fri 4 Dec, 7 PM: US jobs report.** India reacts on Monday via GIFT Nifty.
 - No market holidays.
+
+### 2026-11-28 Rule change
+The owner approved **Rules A** after a 10-year backtest showed the original rules lost money in 2022–26.
+- **What changed:** a wider stop (3×ATR instead of 2×), a bigger target (3R instead of 2R), a longer time limit (60 days instead of 20), and new buys only when NIFTY is above its 200-day average.
+- **What stays the same:** ₹10,000 per stock, max 3 stocks, and the 3% gap rule.
+- **Bajaj Finance** keeps its original rules until it closes.
+- Full evidence and caveats are in skill-change-proposals.md.

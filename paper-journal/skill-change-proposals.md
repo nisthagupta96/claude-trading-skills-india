@@ -2,7 +2,7 @@
 
 > SIMULATION ONLY. A change is proposed only with evidence tested on past data that was not used to design it. Nothing changes until the owner approves.
 
-## Proposal 1 (2026-11-28): wider stop, longer hold, market-trend filter. Status: AWAITING OWNER APPROVAL
+## Proposal 1 (2026-11-28): wider stop, longer hold, market-trend filter. Status: APPROVED by the owner on 2026-11-28 (option A)
 
 **Problem.** The owner asked why the current rules rarely make money. On 10 years of NIFTY 50 data, the current rules made a small profit in 2016–2021 (+₹21 per trade) but lost in 2022–2026 (−₹54 per trade).
 - 1,317 of 3,144 trades hit the stop. The stop sits just 2 normal days' movement below the buy price, so ordinary wobbles knock trades out.
@@ -42,4 +42,4 @@
 - **May not beat an index fund:** about 20 trades × ₹63–₹168 is roughly ₹1,300–₹3,400 a year on up to ₹30,000. That is about 4–11%, similar to or below a NIFTY index fund's long-run average, with more effort and risk.
 - **Mid-trial change:** switching now makes week 1 not comparable with later weeks. Only one trade has been taken so far, so the cost is small.
 
-**Status: AWAITING OWNER APPROVAL.** If approved, only the scheduled-task rules change (no skill files). The current Bajaj Finance trade keeps its original rules until it closes.
+**Status: APPROVED (option A), 2026-11-28.** Applied to the scheduled-task rules for trades planned from Mon 30 Nov 2026. No skill files were changed. Bajaj Finance (bought 23 Nov) keeps its original rules (stop ₹1,068.60, target ₹1,250.40, 20 days) until it closes.
