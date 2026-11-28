@@ -457,3 +457,58 @@ Would you rather have a plan that wins 1 time in 3 but makes ₹2 for every ₹1
 
 **(4) Question for tonight**
 If Bajaj Finance hits its stop next week and you lose about ₹549, would that mean the plan failed, or just that this trade was one of the expected losses? How would you tell the difference?
+
+### Week ending 2026-11-27 – Review
+
+**This week in one line:** 2 ideas, 1 bought (Bajaj Finance, still open), 1 not triggered (Trent). No trade has closed yet, so there are no wins or losses to count.
+
+| Stock | Planned | What happened | Result so far |
+|---|---|---|---|
+| Bajaj Finance | Mon 23 Nov | Bought at ₹1,129.20 on Monday. Still held: day 4 of 20, Friday close ₹1,080.00 | −₹457.74 on paper (not final) |
+| Trent | Fri 27 Nov | Never reached the ₹3,356.60 buy price (high ₹3,300) | ₹0 (no trade) |
+
+*In words: we risked money on one trade. It is down about 5% after charges, but it is still open and could still go either way.*
+
+- **Wins / losses / win rate:** 0 / 0 / not measurable yet (0 closed trades). Win rate is the share of closed trades that make money.
+- **Average win / loss in ₹ and in R:** not available. "R" means the amount risked per share: ₹60.60 for Bajaj Finance. The open trade is at about −0.94R, meaning it has lost almost one full unit of risk, including charges.
+- **Charges:** ₹0 actually paid so far, since nothing has been sold. The open trade carries about ₹64 of round-trip charges, about 0.7% of the ₹9,034 put in.
+- **Net P&L:** realised (locked in) ₹0.00; unrealised (on paper) −₹457.74.
+- **3-stock limit:** never blocked an idea. Most days had no good setup at all (Wed and Thu: none).
+
+**Compared with simple alternatives** (same ₹9,033.60 from Mon 23 Nov to Fri 27 Nov):
+
+| Option | Result | Notes |
+|---|---|---|
+| Our trade (Bajaj Finance) | **−₹457.74** | After charges, not yet final |
+| Bank FD at 7% a year | **+₹6.93** | 4 days of interest, no risk |
+| NIFTY 50 index fund (NIFTYBEES) | **+₹80** (+0.89%) | Mon close ₹289.43 → Fri close ₹292.00. The expense ratio (about 0.04% a year) costs well under ₹1 for 4 days |
+
+*In words: this week, both boring options beat our trade. Note the timing: if the index fund had been bought at Monday's high opening level (like our stock), it would have been about −1.2% (−₹112). Most of our extra loss came from picking one stock that did worse than the market.*
+
+## Calibration
+
+Calibration means checking whether our forecasts come true as often as we said they would. Think of a weather forecast that says "70% chance of rain": it is well calibrated if it rains on about 7 of every 10 such days. For a fund, it's like checking whether its "expected return" actually showed up over many years, not one month.
+
+| Group | Trades closed | Expected chance of hitting target | Actual |
+|---|---|---|---|
+| "Likely = Yes" | 0 | — | — |
+| "Likely = No" (both ideas so far: 16% expected) | 0 | 16% | not measurable yet |
+
+*In words: no trade has finished, so we can't check the forecasts yet. Even later, with fewer than about 30 closed trades, any difference will mostly be luck. At roughly 1 trade a week so far, getting to 30 would take months. A one-month trial will show how the rules behave, but it can't prove whether they work.*
+
+**Cause review:** this week's differences were all cause (a), normal market noise: Bajaj Finance on 23, 25, 26 and 27 Nov, and Trent not triggering on 27 Nov. Errors (c, d, e): 0. Yahoo's missing prices on 26–27 Nov were caught and filled from NSE before any decision, so no trade was affected. **No change needed, this is expected variation.** No skill-change proposals are waiting for approval.
+
+**Verdict: were the suggestions worth following?** Not this week: −₹458 on paper against +₹80 for an index fund. But one week and one trade prove nothing either way. Patterns to watch (not rule changes):
+- **Few setups:** in 5 trading days we found only 2 ideas. The rules are strict, which is good for safety. But it means slow learning and few trades to judge.
+- **Both ideas were rated only "watch":** neither passed all 6 trend checks. If the tool keeps offering "watch"-grade ideas, it is worth watching whether those do worse.
+- **The backtest warning stands:** past data said trades like these reach the target only about 16% of the time, below the roughly 38% needed to make money after charges. Our live results so far don't contradict that.
+- **Bajaj Finance is 1.1% above its stop.** A stop-out next week would be the plan working as designed, not a failure of discipline.
+
+**Next week (30 Nov – 4 Dec): what's coming and why it matters**
+- **Mon 30 Nov, 4 PM: GDP figures** (how fast India's economy grew). Released after the market closes, so they affect Tuesday's opening.
+- **Mon 30 Nov close: MSCI changes.** Big global index funds rebalance their Indian holdings, so some stocks see very heavy trading at Monday's close.
+- **Tue 1 Dec: NIFTY weekly expiry** (this week's NIFTY options end), plus GST collections, car sales and the factory survey (PMI).
+- **Thu 3 Dec: SENSEX weekly expiry.**
+- **Fri 4 Dec, 10 AM: RBI interest-rate decision.** This is the big one. Banks and finance companies like Bajaj Finance usually move sharply on it, and the rupee too.
+- **Fri 4 Dec, 7 PM: US jobs report.** India reacts on Monday via GIFT Nifty.
+- No market holidays.
